@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notetaker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Notetaker</h1>
+            <p class="subtitle">Convert video lectures into markdown</p>
+        </header>
+
+        <!-- Upload Form -->
+        <div id="upload-section" class="card">
+            <form id="upload-form">
+                <div id="dropzone" class="dropzone">
+                    <p class="dropzone-text">Drop MP4 file here or click to browse</p>
+                    <input type="file" id="file-input" accept="video/mp4,video/*" hidden>
+                    <p id="file-name" class="file-name"></p>
+                </div>
+
+                <div class="form-row">
+                    <label for="title-input">Title (optional)</label>
+                    <input type="text" id="title-input" placeholder="Auto-detected from filename">
+                </div>
+
+                <div class="form-row">
+                    <label for="language-input">Language (optional)</label>
+                    <input type="text" id="language-input" placeholder="Auto-detect (e.g. en, es, fr)">
+                </div>
+
+                <button type="submit" id="submit-btn" disabled>Convert to Markdown</button>
+            </form>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="progress-section" class="card" hidden>
+            <h2>Processing</h2>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <p id="progress-stage" class="stage-text">Starting...</p>
+            <p id="progress-substage" class="substage-text"></p>
+        </div>
+
+        <!-- Result Section -->
+        <div id="result-section" class="card" hidden>
+            <h2>Done</h2>
+            <p>Your markdown file is ready.</p>
+            <button id="download-btn" class="download-btn">Download Markdown</button>
+            <button id="new-btn" class="secondary-btn">Convert Another</button>
+        </div>
+
+        <!-- Error Section -->
+        <div id="error-section" class="card error-card" hidden>
+            <h2>Error</h2>
+            <p id="error-message"></p>
+            <button id="retry-btn" class="secondary-btn">Try Again</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

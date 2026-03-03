@@ -1,0 +1,33 @@
+[project]
+name = "notetaker"
+version = "0.2.0"
+description = "Convert video lectures into markdown via web UI"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40.0",
+    "openai>=1.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "python-multipart>=0.0.9",
+    "rich>=13.0.0",
+    "python-dotenv>=1.2.2",
+    "boto3>=1.42.59",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+notetaker = "notetaker.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

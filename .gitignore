@@ -1,2 +1,10 @@
 .DS_Store
+.env
+.venv/
+*.log
+output/jobs/
+extracted_frames/
+__pycache__/
+*.pyc
 .claude/settings.local.json
+.claude/worktrees/
