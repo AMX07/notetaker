@@ -8,3 +8,6 @@ __pycache__/
 *.pyc
 .claude/settings.local.json
 .claude/worktrees/
+extracted_transcript.txt
+*.ipynb
+video2doc/

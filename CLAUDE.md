@@ -5,23 +5,27 @@ Web application that converts MP4 video lectures into markdown files. Upload a v
 
 ## Project Structure
 ```
-notetaker/
+notetaker/                      (repo root)
 ├── pyproject.toml              # Project config, dependencies (uv)
 ├── CLAUDE.md                   # This file - dev instructions
-├── notetaker/                  # Main package
+├── src/                        # Main package
 │   ├── __init__.py
 │   ├── app.py                  # FastAPI backend, routes, job management
 │   ├── audio.py                # ffmpeg: MP4→MP3, video probing
 │   ├── transcribe.py           # OpenAI Whisper API transcription
 │   ├── frames.py               # ffmpeg: hybrid frame extraction
 │   ├── segmenter.py            # Time-window segmentation + frame alignment
-│   ├── llm.py                  # 3-stage LLM: cleanup, vision, assembly
+│   ├── llm.py                  # Opus 4.6 agent: cleanup, vision, assembly, review
 │   └── assembler.py            # Markdown generation + image management
 ├── static/                     # Frontend
 │   ├── index.html
 │   ├── style.css
 │   └── app.js
-└── output/                     # Generated outputs
+├── tests/                      # Smoke tests
+│   └── test_api_connections.py
+├── docs/
+│   └── ARCHITECTURE.md
+└── output/jobs/                # Runtime job data (gitignored)
 ```
 
 ## Quick Start

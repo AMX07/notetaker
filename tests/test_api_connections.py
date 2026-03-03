@@ -25,7 +25,7 @@ def test_openai_whisper_connection():
 
 def test_bedrock_client_creation():
     """Verify AWS credentials are valid and Bedrock client can be created."""
-    from notetaker.llm import get_client, _is_bedrock
+    from src.llm import get_client, _is_bedrock
 
     region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
     assert region, "AWS_REGION not set in environment"
@@ -38,7 +38,7 @@ def test_bedrock_client_creation():
 
 def test_bedrock_haiku_call():
     """Verify Haiku model works on Bedrock (cheapest possible call)."""
-    from notetaker.llm import get_client, get_model_id, _is_bedrock
+    from src.llm import get_client, get_model_id, _is_bedrock
 
     client = get_client(use_bedrock=True)
     model_id = get_model_id("claude-haiku-4-5-20251001", _is_bedrock(client))
@@ -55,7 +55,7 @@ def test_bedrock_haiku_call():
 
 def test_bedrock_sonnet_call():
     """Verify Sonnet model works on Bedrock."""
-    from notetaker.llm import get_client, get_model_id, _is_bedrock
+    from src.llm import get_client, get_model_id, _is_bedrock
 
     client = get_client(use_bedrock=True)
     model_id = get_model_id("claude-sonnet-4-20250514", _is_bedrock(client))
@@ -72,7 +72,7 @@ def test_bedrock_sonnet_call():
 
 def test_bedrock_opus_call():
     """Verify Opus 4.6 model works on Bedrock (used as orchestrator)."""
-    from notetaker.llm import get_client, get_model_id, _is_bedrock
+    from src.llm import get_client, get_model_id, _is_bedrock
 
     client = get_client(use_bedrock=True)
     model_id = get_model_id("claude-opus-4-6", _is_bedrock(client))
@@ -89,7 +89,7 @@ def test_bedrock_opus_call():
 
 def test_bedrock_tool_use():
     """Verify tool_use works on Bedrock (critical for the agent loop)."""
-    from notetaker.llm import get_client, get_model_id, _is_bedrock
+    from src.llm import get_client, get_model_id, _is_bedrock
 
     client = get_client(use_bedrock=True)
     model_id = get_model_id("claude-haiku-4-5-20251001", _is_bedrock(client))
