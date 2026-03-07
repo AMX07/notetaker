@@ -1,10 +1,24 @@
 # Notetaker
 
-Convert MP4 video lectures into comprehensive, lossless markdown documents via a web UI.
+Convert MP4 video lectures into comprehensive, lossless markdown documents.
+
+This project was inspire by andrej karpathy's challenge to create an automated note taker: https://x.com/karpathy/status/1760740503614836917
+
+## Demo
+
+<table>
+<tr>
+<td align="center"><strong>Video</strong></td>
+<td align="center"><strong>Notes</strong></td>
+</tr>
+<tr>
+<td><img src="image-1.png" alt="Video lecture" width="500" /></td>
+<td><img src="demo-notes.png" alt="Generated markdown notes" width="500" /></td>
+</tr>
+</table>
 
 ## Features
 
-- **Web UI**: Upload an MP4, watch progress, download the result
 - **Lossless translation**: Preserves the speaker's voice — no paraphrasing
 - **Parallel pipeline**: Audio + frame extraction run concurrently, Whisper chunks transcribe in parallel
 - **Opus 4.6 agent**: Orchestrates cleanup, visual analysis, and assembly — then reviews its own output and revises if needed
