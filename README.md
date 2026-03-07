@@ -12,7 +12,7 @@ This project was inspire by andrej karpathy's challenge to create an automated n
 <td align="center"><strong>Notes</strong></td>
 </tr>
 <tr>
-<td><img src="image-1.png" alt="Video lecture" width="500" /></td>
+<td><img src="image.png" alt="Video lecture" width="500" /></td>
 <td><img src="demo-notes.png" alt="Generated markdown notes" width="500" /></td>
 </tr>
 </table>
