@@ -1,11 +1,24 @@
 """Speech-to-text transcription via OpenAI Whisper API."""
 
 import json
+import logging
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, asdict
 from pathlib import Path
+
+import openai
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+logger = logging.getLogger("notetaker")
+
+_whisper_retry = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type((openai.RateLimitError, openai.APIConnectionError)),
+    reraise=True,
+)
 
 
 @dataclass
@@ -94,7 +107,7 @@ def _transcribe_chunk(
         if language:
             kwargs["language"] = language
 
-        response = client.audio.transcriptions.create(**kwargs)
+        response = _whisper_retry(client.audio.transcriptions.create)(**kwargs)
 
     segments = []
     for seg in response.segments:

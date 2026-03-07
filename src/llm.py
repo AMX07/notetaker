@@ -13,10 +13,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+import anthropic
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 from .assembler import create_markdown_document, save_markdown, copy_referenced_frames
 from .segmenter import VideoSegment
 
 logger = logging.getLogger("notetaker")
+
+_RETRYABLE_ERRORS = (
+    anthropic.RateLimitError,
+    anthropic.InternalServerError,
+    anthropic.APIConnectionError,
+)
+
+_api_retry = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type(_RETRYABLE_ERRORS),
+    reraise=True,
+)
+
+
+def _call_anthropic(client, **kwargs):
+    """Call client.messages.create with retry on transient errors."""
+    return _api_retry(client.messages.create)(**kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -184,7 +205,8 @@ def clean_segment(
     client = get_client(use_bedrock=use_bedrock)
     model_id = get_model_id(cleanup_model, _is_bedrock(client))
 
-    message = client.messages.create(
+    message = _call_anthropic(
+        client,
         model=model_id,
         max_tokens=4096,
         system=CLEANUP_SYSTEM_PROMPT,
@@ -244,7 +266,8 @@ def analyze_segment_visuals(
 
     content.append({"type": "text", "text": VISUAL_ANALYSIS_PROMPT})
 
-    message = client.messages.create(
+    message = _call_anthropic(
+        client,
         model=model_id,
         max_tokens=4096,
         messages=[{"role": "user", "content": content}],
@@ -698,7 +721,8 @@ def _execute_assemble_document(
 
     if len(processed_segments) <= batch_size:
         prompt = _build_assembly_prompt(processed_segments)
-        message = client.messages.create(
+        message = _call_anthropic(
+            client,
             model=model_id,
             max_tokens=8192,
             system=enhanced_system,
@@ -720,7 +744,8 @@ def _execute_assemble_document(
                     + "\n\nContinue from here. Do not repeat the above.\n\n"
                 )
             prompt = context + _build_assembly_prompt(batch)
-            message = client.messages.create(
+            message = _call_anthropic(
+                client,
                 model=model_id,
                 max_tokens=8192,
                 system=enhanced_system,
@@ -791,7 +816,8 @@ def _execute_revise_segments(
         current_file = cache_cleaned_dir / f"segment_{idx}.txt"
         current_text = current_file.read_text() if current_file.exists() else segments[idx].text
 
-        message = client.messages.create(
+        message = _call_anthropic(
+            client,
             model=model_id,
             max_tokens=4096,
             system=REVISION_SYSTEM_PROMPT,
@@ -925,7 +951,8 @@ def run_agent_loop(
     for iteration in range(max_iterations):
         logger.info(f"Agent loop iteration {iteration + 1}/{max_iterations}")
 
-        response = client.messages.create(
+        response = _call_anthropic(
+            client,
             model=model_id,
             max_tokens=4096,
             system=system,

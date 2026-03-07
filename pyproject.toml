@@ -13,6 +13,7 @@ dependencies = [
     "rich>=13.0.0",
     "python-dotenv>=1.2.2",
     "boto3>=1.42.59",
+    "tenacity>=8.0.0",
 ]
 
 [project.optional-dependencies]

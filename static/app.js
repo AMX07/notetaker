@@ -49,7 +49,18 @@ fileInput.addEventListener("change", () => {
     }
 });
 
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
+const ALLOWED_TYPES = ["video/mp4", "video/x-matroska", "video/quicktime", "video/webm", "video/x-msvideo"];
+
 function selectFile(file) {
+    if (file.type && !file.type.startsWith("video/")) {
+        showError("Please select a video file.");
+        return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+        showError("File too large (max 2 GB).");
+        return;
+    }
     selectedFile = file;
     fileName.textContent = file.name;
     submitBtn.disabled = false;
@@ -80,7 +91,8 @@ uploadForm.addEventListener("submit", async (e) => {
         });
 
         if (!res.ok) {
-            throw new Error(`Upload failed: ${res.statusText}`);
+            const err = await res.json().catch(() => null);
+            throw new Error(err?.detail || `Upload failed: ${res.statusText}`);
         }
 
         const data = await res.json();

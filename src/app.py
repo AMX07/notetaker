@@ -3,9 +3,13 @@
 import concurrent.futures
 import json
 import logging
+import os
+import re
+import shutil
 import threading
 import uuid
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,13 +32,13 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(LOG_PATH),
+        RotatingFileHandler(LOG_PATH, maxBytes=10 * 1024 * 1024, backupCount=3),
         logging.StreamHandler(),
     ],
 )
 logger = logging.getLogger("notetaker")
 
-app = FastAPI(title="Notetaker")
+app = FastAPI(title="Notetaker", docs_url=None, redoc_url=None, openapi_url=None)
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -50,6 +54,21 @@ if STATIC_DIR.exists():
 jobs: dict[str, dict] = {}
 
 PIPELINE_STEPS = ["extract", "transcribe", "segment", "agent"]
+
+# Upload limits
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
+ALLOWED_EXTENSIONS = {".mp4", ".mkv", ".mov", ".webm", ".avi"}
+
+# Concurrency guard — limits parallel pipeline jobs
+MAX_CONCURRENT_JOBS = 2
+_job_semaphore = threading.Semaphore(MAX_CONCURRENT_JOBS)
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Strip path components and dangerous characters from an upload filename."""
+    name = Path(filename).name
+    name = re.sub(r"[^\w\-.]", "_", name)
+    return name or "upload.mp4"
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +171,28 @@ def _restore_jobs_from_disk() -> None:
     logger.info(f"Restored {len(jobs)} jobs from disk")
 
 
+def _validate_environment() -> None:
+    """Fail fast if required tools or API keys are missing."""
+    errors = []
+    if not shutil.which("ffmpeg"):
+        errors.append("ffmpeg not found in PATH")
+    if not shutil.which("ffprobe"):
+        errors.append("ffprobe not found in PATH")
+    if not os.environ.get("OPENAI_API_KEY"):
+        errors.append("OPENAI_API_KEY is not set")
+    has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    has_aws = bool(os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"))
+    if not has_anthropic and not has_aws:
+        errors.append("Neither ANTHROPIC_API_KEY nor AWS_REGION is set")
+    if errors:
+        for e in errors:
+            logger.error(f"STARTUP CHECK FAILED: {e}")
+        raise RuntimeError(f"Missing requirements: {'; '.join(errors)}")
+
+
 @app.on_event("startup")
 async def startup():
+    _validate_environment()
     _restore_jobs_from_disk()
 
 
@@ -177,18 +216,44 @@ async def start_conversion(
     language: str = Form(default=""),
 ):
     """Upload an MP4 and start the conversion pipeline."""
+    # Validate file extension
+    safe_name = _sanitize_filename(video.filename or "upload.mp4")
+    ext = Path(safe_name).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
+
+    # Validate content type
+    if video.content_type and not video.content_type.startswith("video/"):
+        raise HTTPException(status_code=400, detail="File must be a video")
+
+    # Check concurrency limit
+    if _job_semaphore._value == 0:
+        raise HTTPException(status_code=429, detail="Too many jobs running, try again later")
+
     job_id = str(uuid.uuid4())[:8]
     job_dir = JOBS_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save uploaded file
-    video_path = job_dir / video.filename
-    with open(video_path, "wb") as f:
-        content = await video.read()
-        f.write(content)
+    # Stream uploaded file to disk with size limit
+    video_path = job_dir / safe_name
+    total_bytes = 0
+    try:
+        with open(video_path, "wb") as f:
+            while chunk := await video.read(8192):
+                total_bytes += len(chunk)
+                if total_bytes > MAX_UPLOAD_BYTES:
+                    video_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024**3)}GB limit",
+                    )
+                f.write(chunk)
+    except HTTPException:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise
 
     # Create checkpoint
-    checkpoint = _new_checkpoint(job_id, video.filename, title or video.filename, language or None)
+    checkpoint = _new_checkpoint(job_id, safe_name, title or safe_name, language or None)
     _save_checkpoint(job_dir, checkpoint)
 
     jobs[job_id] = {
@@ -200,7 +265,7 @@ async def start_conversion(
         "error": None,
         "output_path": None,
         "work_dir": str(job_dir),
-        "video_filename": video.filename,
+        "video_filename": safe_name,
     }
 
     thread = threading.Thread(
@@ -283,6 +348,26 @@ async def list_jobs():
     ]
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.delete("/api/jobs/{job_id}")
+async def delete_job(job_id: str):
+    """Delete a job and its files."""
+    if not re.fullmatch(r"[a-f0-9\-]{8}", job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID")
+    job_dir = JOBS_DIR / job_id
+    if not job_dir.exists():
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job_id in jobs and jobs[job_id]["status"] == "processing":
+        raise HTTPException(status_code=409, detail="Cannot delete a running job")
+    shutil.rmtree(job_dir)
+    jobs.pop(job_id, None)
+    return {"status": "deleted"}
+
+
 @app.get("/api/download/{job_id}")
 async def download_result(job_id: str):
     """Download the generated markdown file."""
@@ -320,6 +405,7 @@ def _run_pipeline(job_id: str):
     title = cp["title"]
     language = cp["language"]
 
+    _job_semaphore.acquire()
     try:
         job.update(status="processing")
 
@@ -427,7 +513,9 @@ def _run_pipeline(job_id: str):
                 _mark_step(cp, step, "failed", error=str(e))
                 _save_checkpoint(job_dir, cp)
                 break
-        job.update(status="error", error=str(e))
+        job.update(status="error", error="Processing failed. Check server logs for details.")
+    finally:
+        _job_semaphore.release()
 
 
 def main():
