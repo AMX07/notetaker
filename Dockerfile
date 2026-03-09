@@ -1,7 +1,12 @@
-FROM python:3.12-slim
+FROM ubuntu:22.04
 
-# System deps
+# Avoid interactive prompts during apt install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System deps (uses Ubuntu repos, not Debian)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
     ffmpeg \
     curl \
     && rm -rf /var/lib/apt/lists/*
