@@ -198,7 +198,7 @@ exampleBtn.addEventListener("click", async () => {
         try {
             const res = await fetch("/static/example-output.md");
             const text = await res.text();
-            exampleOutput.textContent = text;
+            exampleOutput.innerHTML = marked.parse(text);
             exampleOutput.dataset.loaded = "1";
         } catch {
             exampleOutput.textContent = "Failed to load example.";
