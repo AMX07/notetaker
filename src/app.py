@@ -1,5 +1,6 @@
 """FastAPI web application for notetaker."""
 
+import asyncio
 import concurrent.futures
 import json
 import logging
@@ -7,24 +8,27 @@ import os
 import re
 import shutil
 import threading
+import time
 import uuid
+from collections import defaultdict
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from dotenv import load_dotenv
-load_dotenv()
-
 import uvicorn
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .audio import extract_audio
-from .transcribe import transcribe_audio, segments_to_json, segments_from_json
-from .frames import extract_frames_hybrid, frames_to_json, frames_from_json
-from .segmenter import segment_by_time_windows, align_frames_to_segments
+from .frames import extract_frames_hybrid, frames_from_json, frames_to_json
 from .llm import run_agent_loop
+from .segmenter import align_frames_to_segments, segment_by_time_windows
+from .transcribe import segments_from_json, segments_to_json, transcribe_audio
+
+load_dotenv()
 
 # Logging setup — writes to notetaker.log and stdout
 LOG_PATH = Path(__file__).parent.parent / "notetaker.log"
@@ -38,7 +42,78 @@ logging.basicConfig(
 )
 logger = logging.getLogger("notetaker")
 
-app = FastAPI(title="Notetaker", docs_url=None, redoc_url=None, openapi_url=None)
+# Job TTL and pipeline timeout (configurable via environment)
+JOB_TTL_HOURS = int(os.environ.get("JOB_TTL_HOURS", "24"))
+PIPELINE_TIMEOUT_SECONDS = int(os.environ.get("PIPELINE_TIMEOUT_SECONDS", "1800"))  # 30 min
+FFMPEG_TIMEOUT_SECONDS = 300  # 5 min per ffmpeg call
+
+# Rate limiting — simple in-memory tracker (per-IP, per-hour)
+UPLOAD_RATE_LIMIT = int(os.environ.get("UPLOAD_RATE_LIMIT", "5"))  # requests per hour
+_rate_limit_store: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_rate_limit(client_ip: str) -> int | None:
+    """Check if client_ip has exceeded the upload rate limit.
+
+    Returns seconds until next allowed request, or None if allowed.
+    """
+    now = time.time()
+    window = 3600  # 1 hour
+    timestamps = _rate_limit_store[client_ip]
+    # Prune old entries
+    _rate_limit_store[client_ip] = [t for t in timestamps if now - t < window]
+    timestamps = _rate_limit_store[client_ip]
+
+    if len(timestamps) >= UPLOAD_RATE_LIMIT:
+        retry_after = int(timestamps[0] + window - now) + 1
+        return retry_after
+    _rate_limit_store[client_ip].append(now)
+    return None
+
+
+async def _cleanup_expired_jobs() -> None:
+    """Periodically remove job directories older than JOB_TTL_HOURS."""
+    while True:
+        await asyncio.sleep(600)  # check every 10 minutes
+        now = time.time()
+        ttl_seconds = JOB_TTL_HOURS * 3600
+        removed = 0
+        for job_dir in JOBS_DIR.iterdir():
+            if not job_dir.is_dir():
+                continue
+            job_id = job_dir.name
+            # Don't remove running jobs
+            if job_id in jobs and jobs[job_id]["status"] == "processing":
+                continue
+            try:
+                mtime = job_dir.stat().st_mtime
+                if now - mtime > ttl_seconds:
+                    shutil.rmtree(job_dir)
+                    jobs.pop(job_id, None)
+                    removed += 1
+            except OSError:
+                pass
+        if removed:
+            logger.info(f"Cleaned up {removed} expired job(s)")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup validation, job restore, cleanup task."""
+    _validate_environment()
+    _restore_jobs_from_disk()
+    cleanup_task = asyncio.create_task(_cleanup_expired_jobs())
+    yield
+    cleanup_task.cancel()
+
+
+app = FastAPI(
+    title="Notetaker",
+    description="Convert video lectures into well-structured markdown notes. "
+    "Upload a video, get back a document preserving the speaker's voice with minimal edits.",
+    version="0.2.0",
+    lifespan=lifespan,
+)
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -74,6 +149,7 @@ def _sanitize_filename(filename: str) -> str:
 # ---------------------------------------------------------------------------
 # Checkpoint helpers
 # ---------------------------------------------------------------------------
+
 
 def _checkpoint_path(job_dir: Path) -> Path:
     return job_dir / "checkpoint.json"
@@ -135,9 +211,7 @@ def _restore_jobs_from_disk() -> None:
         steps = cp["steps"]
 
         # Check completion — handle both old format (assemble) and new (agent)
-        final_completed = any(
-            steps.get(s, {}).get("status") == "completed" for s in _FINAL_STEPS
-        )
+        final_completed = any(steps.get(s, {}).get("status") == "completed" for s in _FINAL_STEPS)
 
         if final_completed:
             status = "completed"
@@ -190,17 +264,12 @@ def _validate_environment() -> None:
         raise RuntimeError(f"Missing requirements: {'; '.join(errors)}")
 
 
-@app.on_event("startup")
-async def startup():
-    _validate_environment()
-    _restore_jobs_from_disk()
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
-@app.get("/")
+
+@app.get("/", include_in_schema=False)
 async def index():
     """Serve the frontend."""
     index_path = STATIC_DIR / "index.html"
@@ -209,13 +278,28 @@ async def index():
     return FileResponse(index_path)
 
 
-@app.post("/api/convert")
+@app.post("/api/convert", summary="Upload video and start conversion", tags=["Jobs"])
 async def start_conversion(
+    request: Request,
     video: UploadFile = File(...),
     title: str = Form(default=""),
     language: str = Form(default=""),
 ):
-    """Upload an MP4 and start the conversion pipeline."""
+    """Upload a video file and start the conversion pipeline.
+
+    Accepts MP4, MKV, MOV, WebM, and AVI files up to 2 GB.
+    Returns a job ID for polling status.
+    """
+    # Rate limit check
+    client_ip = request.client.host if request.client else "unknown"
+    retry_after = _check_rate_limit(client_ip)
+    if retry_after is not None:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": f"Rate limit exceeded. Try again in {retry_after} seconds."},
+            headers={"Retry-After": str(retry_after)},
+        )
+
     # Validate file extension
     safe_name = _sanitize_filename(video.filename or "upload.mp4")
     ext = Path(safe_name).suffix.lower()
@@ -278,7 +362,7 @@ async def start_conversion(
     return {"job_id": job_id}
 
 
-@app.post("/api/resume/{job_id}")
+@app.post("/api/resume/{job_id}", summary="Resume a failed job", tags=["Jobs"])
 async def resume_job(job_id: str):
     """Resume a failed or incomplete job from its last checkpoint."""
     job_dir = JOBS_DIR / job_id
@@ -318,9 +402,9 @@ async def resume_job(job_id: str):
     return {"job_id": job_id, "message": "Resuming from last checkpoint"}
 
 
-@app.get("/api/status/{job_id}")
+@app.get("/api/status/{job_id}", summary="Get job status", tags=["Jobs"])
 async def get_status(job_id: str):
-    """Get the processing status of a job."""
+    """Get the processing status of a job including progress percentage and current stage."""
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     job = jobs[job_id]
@@ -334,9 +418,9 @@ async def get_status(job_id: str):
     }
 
 
-@app.get("/api/jobs")
+@app.get("/api/jobs", summary="List all jobs", tags=["Jobs"])
 async def list_jobs():
-    """List all jobs."""
+    """List all jobs with their current status."""
     return [
         {
             "job_id": jid,
@@ -348,14 +432,16 @@ async def list_jobs():
     ]
 
 
-@app.get("/health")
+@app.get("/health", summary="Health check", tags=["System"])
 async def health():
-    return {"status": "ok"}
+    """Health check endpoint for orchestrators and monitoring."""
+    active = sum(1 for j in jobs.values() if j["status"] == "processing")
+    return {"status": "ok", "version": "0.2.0", "active_jobs": active}
 
 
-@app.delete("/api/jobs/{job_id}")
+@app.delete("/api/jobs/{job_id}", summary="Delete a job", tags=["Jobs"])
 async def delete_job(job_id: str):
-    """Delete a job and its files."""
+    """Delete a job and its files. Cannot delete a job that is currently processing."""
     if not re.fullmatch(r"[a-f0-9\-]{8}", job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
     job_dir = JOBS_DIR / job_id
@@ -368,9 +454,9 @@ async def delete_job(job_id: str):
     return {"status": "deleted"}
 
 
-@app.get("/api/download/{job_id}")
+@app.get("/api/download/{job_id}", summary="Download result", tags=["Jobs"])
 async def download_result(job_id: str):
-    """Download the generated markdown file."""
+    """Download the generated markdown file for a completed job."""
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     job = jobs[job_id]
@@ -390,6 +476,7 @@ async def download_result(job_id: str):
 # Pipeline: parallel workflow (steps 1-3) + agent loop (step 4)
 # ---------------------------------------------------------------------------
 
+
 def _run_pipeline(job_id: str):
     """Run the conversion pipeline with parallel extraction and agent-based LLM processing."""
     job = jobs[job_id]
@@ -406,6 +493,7 @@ def _run_pipeline(job_id: str):
     language = cp["language"]
 
     _job_semaphore.acquire()
+    pipeline_start = time.time()
     try:
         job.update(status="processing")
 
@@ -434,6 +522,10 @@ def _run_pipeline(job_id: str):
             _mark_step(cp, "extract", "completed")
             _save_checkpoint(job_dir, cp)
 
+        # Check pipeline timeout
+        if time.time() - pipeline_start > PIPELINE_TIMEOUT_SECONDS:
+            raise TimeoutError("Pipeline exceeded maximum time limit")
+
         # === Step 2: Transcribe (parallel Whisper chunks internally) ===
         transcript_path = job_dir / "transcript.json"
         if _step_completed(cp, "transcribe"):
@@ -447,6 +539,10 @@ def _run_pipeline(job_id: str):
             logger.info(f"[{job_id}] Transcription done: {len(transcript_segments)} segments")
             _mark_step(cp, "transcribe", "completed")
             _save_checkpoint(job_dir, cp)
+
+        # Check pipeline timeout
+        if time.time() - pipeline_start > PIPELINE_TIMEOUT_SECONDS:
+            raise TimeoutError("Pipeline exceeded maximum time limit")
 
         # === Step 3: Segment transcript + align frames ===
         segments_json_path = job_dir / "segments.json"
@@ -465,6 +561,10 @@ def _run_pipeline(job_id: str):
             _save_checkpoint(job_dir, cp)
 
         video_segments = align_frames_to_segments(windows, frames, transcript_segments)
+
+        # Check pipeline timeout
+        if time.time() - pipeline_start > PIPELINE_TIMEOUT_SECONDS:
+            raise TimeoutError("Pipeline exceeded maximum time limit")
 
         # === Step 4: LLM Agent (Opus 4.6 orchestrator + reviewer) ===
         if _step_completed(cp, "agent"):
@@ -506,6 +606,18 @@ def _run_pipeline(job_id: str):
             output_path=str(result_path),
         )
 
+    except TimeoutError as e:
+        logger.error(f"[{job_id}] Pipeline timeout: {e}")
+        for step in PIPELINE_STEPS:
+            if cp["steps"][step]["status"] == "pending":
+                _mark_step(cp, step, "failed", error=str(e))
+                _save_checkpoint(job_dir, cp)
+                break
+        job.update(
+            status="error",
+            stage="Timed out",
+            error="Processing timed out. The video may be too long. You can try resuming.",
+        )
     except Exception as e:
         logger.error(f"[{job_id}] Error: {e}", exc_info=True)
         for step in PIPELINE_STEPS:

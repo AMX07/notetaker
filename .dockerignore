@@ -10,3 +10,5 @@ __pycache__/
 !README.md
 tests/
 docs/
+.ruff_cache/
+PLAN.md

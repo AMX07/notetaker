@@ -9,9 +9,10 @@ from .frames import ExtractedFrame
 @dataclass
 class VideoSegment:
     """A segment of the video with aligned transcript and frames."""
+
     index: int
-    start: float          # seconds
-    end: float            # seconds
+    start: float  # seconds
+    end: float  # seconds
     transcript_segments: list[TranscriptSegment]
     frames: list[ExtractedFrame]
 
@@ -73,7 +74,6 @@ def segment_by_time_windows(
                 if gap_idx > i:
                     break
                 gap_time = transcript_segments[gap_idx].end
-                time_from_target = abs(gap_time - window_start_time - target_duration)
                 # Prefer gaps near the target duration, weighted by gap size
                 if (gap_time - window_start_time) >= min_duration and gap_size > best_gap_size:
                     best_gap_size = gap_size
@@ -111,10 +111,12 @@ def segment_by_time_windows(
 
     # Add final window
     if window_start_idx < len(transcript_segments):
-        windows.append((
-            window_start_time,
-            transcript_segments[-1].end,
-        ))
+        windows.append(
+            (
+                window_start_time,
+                transcript_segments[-1].end,
+            )
+        )
 
     return windows
 
@@ -141,23 +143,19 @@ def align_frames_to_segments(
 
     for idx, (start, end) in enumerate(windows):
         # Collect transcript segments in this window
-        segs = [
-            s for s in transcript_segments
-            if s.start >= start and s.start < end
-        ]
+        segs = [s for s in transcript_segments if s.start >= start and s.start < end]
 
         # Collect frames in this window
-        window_frames = [
-            f for f in frames
-            if f.timestamp >= start and f.timestamp < end
-        ]
+        window_frames = [f for f in frames if f.timestamp >= start and f.timestamp < end]
 
-        video_segments.append(VideoSegment(
-            index=idx,
-            start=start,
-            end=end,
-            transcript_segments=segs,
-            frames=window_frames,
-        ))
+        video_segments.append(
+            VideoSegment(
+                index=idx,
+                start=start,
+                end=end,
+                transcript_segments=segs,
+                frames=window_frames,
+            )
+        )
 
     return video_segments

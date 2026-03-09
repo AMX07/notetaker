@@ -24,6 +24,7 @@ _whisper_retry = retry(
 @dataclass
 class TranscriptWord:
     """A single transcribed word with timing."""
+
     text: str
     start: float
     end: float
@@ -32,6 +33,7 @@ class TranscriptWord:
 @dataclass
 class TranscriptSegment:
     """A sentence-level transcript segment."""
+
     text: str
     start: float
     end: float
@@ -52,9 +54,19 @@ def split_audio_for_api(audio_path: Path, max_size_mb: float = 25.0) -> list[Pat
 
     # Get duration via ffprobe
     result = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
-        capture_output=True, text=True, check=True,
+        [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(audio_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     total_duration = float(result.stdout.strip())
 
@@ -67,10 +79,15 @@ def split_audio_for_api(audio_path: Path, max_size_mb: float = 25.0) -> list[Pat
         start = i * chunk_duration
         chunk_path = audio_path.with_stem(f"{audio_path.stem}_chunk{i:03d}")
         cmd = [
-            "ffmpeg", "-i", str(audio_path),
-            "-ss", str(start),
-            "-t", str(chunk_duration),
-            "-y", str(chunk_path),
+            "ffmpeg",
+            "-i",
+            str(audio_path),
+            "-ss",
+            str(start),
+            "-t",
+            str(chunk_duration),
+            "-y",
+            str(chunk_path),
         ]
         subprocess.run(cmd, capture_output=True, check=True)
         chunks.append(chunk_path)
@@ -81,9 +98,19 @@ def split_audio_for_api(audio_path: Path, max_size_mb: float = 25.0) -> list[Pat
 def _get_chunk_duration(chunk_path: Path) -> float:
     """Get duration of an audio file via ffprobe."""
     result = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(chunk_path)],
-        capture_output=True, text=True, check=True,
+        [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(chunk_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return float(result.stdout.strip())
 
@@ -115,17 +142,21 @@ def _transcribe_chunk(
         if response.words:
             for w in response.words:
                 if seg.start <= w.start < seg.end:
-                    words.append(TranscriptWord(
-                        text=w.word.strip(),
-                        start=w.start + time_offset,
-                        end=w.end + time_offset,
-                    ))
-        segments.append(TranscriptSegment(
-            text=seg.text.strip(),
-            start=seg.start + time_offset,
-            end=seg.end + time_offset,
-            words=words,
-        ))
+                    words.append(
+                        TranscriptWord(
+                            text=w.word.strip(),
+                            start=w.start + time_offset,
+                            end=w.end + time_offset,
+                        )
+                    )
+        segments.append(
+            TranscriptSegment(
+                text=seg.text.strip(),
+                start=seg.start + time_offset,
+                end=seg.end + time_offset,
+                words=words,
+            )
+        )
     return segments
 
 

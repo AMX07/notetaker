@@ -9,6 +9,7 @@ from pathlib import Path
 @dataclass
 class VideoInfo:
     """Metadata about a video file."""
+
     duration_seconds: float
     width: int
     height: int
@@ -19,20 +20,20 @@ class VideoInfo:
 def probe_video(video_path: Path) -> VideoInfo:
     """Get video metadata using ffprobe."""
     cmd = [
-        "ffprobe", "-v", "quiet",
-        "-print_format", "json",
-        "-show_format", "-show_streams",
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_format",
+        "-show_streams",
         str(video_path),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
     data = json.loads(result.stdout)
 
-    video_stream = next(
-        (s for s in data["streams"] if s["codec_type"] == "video"), None
-    )
-    audio_stream = next(
-        (s for s in data["streams"] if s["codec_type"] == "audio"), None
-    )
+    video_stream = next((s for s in data["streams"] if s["codec_type"] == "video"), None)
+    audio_stream = next((s for s in data["streams"] if s["codec_type"] == "audio"), None)
 
     if not video_stream:
         raise ValueError(f"No video stream found in {video_path}")
@@ -74,12 +75,16 @@ def extract_audio(
         output_path = video_path.with_suffix(f".{audio_format}")
 
     cmd = [
-        "ffmpeg", "-i", str(video_path),
-        "-vn",                    # no video
-        "-ac", "1",               # mono
-        "-ab", bitrate,           # bitrate
-        "-y",                     # overwrite
+        "ffmpeg",
+        "-i",
+        str(video_path),
+        "-vn",  # no video
+        "-ac",
+        "1",  # mono
+        "-ab",
+        bitrate,  # bitrate
+        "-y",  # overwrite
         str(output_path),
     ]
-    subprocess.run(cmd, capture_output=True, check=True)
+    subprocess.run(cmd, capture_output=True, check=True, timeout=300)
     return output_path

@@ -1,12 +1,14 @@
 """Quick smoke tests to verify OpenAI and AWS Bedrock API connections work."""
 
 import os
-from pathlib import Path
 
+import pytest
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
+@pytest.mark.smoke
 def test_openai_whisper_connection():
     """Verify OpenAI API key works and Whisper model is accessible."""
     from openai import OpenAI
@@ -23,6 +25,7 @@ def test_openai_whisper_connection():
     print(f"  OpenAI OK — {len(models.data)} models available, whisper-1 found")
 
 
+@pytest.mark.smoke
 def test_bedrock_client_creation():
     """Verify AWS credentials are valid and Bedrock client can be created."""
     from src.llm import get_client, _is_bedrock
@@ -36,6 +39,7 @@ def test_bedrock_client_creation():
     print(f"  Bedrock client created for region: {region}")
 
 
+@pytest.mark.smoke
 def test_bedrock_haiku_call():
     """Verify Haiku model works on Bedrock (cheapest possible call)."""
     from src.llm import get_client, get_model_id, _is_bedrock
@@ -53,6 +57,7 @@ def test_bedrock_haiku_call():
     print(f"  Bedrock Haiku OK — model: {model_id}, response: '{text}'")
 
 
+@pytest.mark.smoke
 def test_bedrock_sonnet_call():
     """Verify Sonnet model works on Bedrock."""
     from src.llm import get_client, get_model_id, _is_bedrock
@@ -70,6 +75,7 @@ def test_bedrock_sonnet_call():
     print(f"  Bedrock Sonnet OK — model: {model_id}, response: '{text}'")
 
 
+@pytest.mark.smoke
 def test_bedrock_opus_call():
     """Verify Opus 4.6 model works on Bedrock (used as orchestrator)."""
     from src.llm import get_client, get_model_id, _is_bedrock
@@ -87,6 +93,7 @@ def test_bedrock_opus_call():
     print(f"  Bedrock Opus OK — model: {model_id}, response: '{text}'")
 
 
+@pytest.mark.smoke
 def test_bedrock_tool_use():
     """Verify tool_use works on Bedrock (critical for the agent loop)."""
     from src.llm import get_client, get_model_id, _is_bedrock
@@ -100,9 +107,7 @@ def test_bedrock_tool_use():
             "description": "A test tool that returns pong.",
             "input_schema": {
                 "type": "object",
-                "properties": {
-                    "message": {"type": "string", "description": "A message."}
-                },
+                "properties": {"message": {"type": "string", "description": "A message."}},
                 "required": ["message"],
             },
         }
@@ -118,9 +123,12 @@ def test_bedrock_tool_use():
     tool_calls = [b for b in response.content if b.type == "tool_use"]
     assert len(tool_calls) > 0, f"Expected tool_use, got: {[b.type for b in response.content]}"
     assert tool_calls[0].name == "ping"
-    print(f"  Bedrock tool_use OK — tool called: {tool_calls[0].name}, input: {tool_calls[0].input}")
+    print(
+        f"  Bedrock tool_use OK — tool called: {tool_calls[0].name}, input: {tool_calls[0].input}"
+    )
 
 
+@pytest.mark.smoke
 def test_ffmpeg_available():
     """Verify ffmpeg and ffprobe are installed."""
     import subprocess
@@ -159,5 +167,5 @@ if __name__ == "__main__":
             print(f"  FAILED: {e}")
             failed += 1
 
-    print(f"\n{'='*40}")
+    print(f"\n{'=' * 40}")
     print(f"Results: {passed} passed, {failed} failed")

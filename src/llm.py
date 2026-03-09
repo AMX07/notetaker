@@ -44,12 +44,14 @@ def _call_anthropic(client, **kwargs):
 # Data classes for LLM output
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class VisualContent:
     """Result of analyzing a single video frame."""
+
     frame_path: Path
     timestamp: float
-    category: str           # "code", "math", "diagram", "text", "talking_head", "other"
+    category: str  # "code", "math", "diagram", "text", "talking_head", "other"
     extracted_text: str | None
     description: str | None
     include_as_image: bool
@@ -58,6 +60,7 @@ class VisualContent:
 @dataclass
 class ProcessedSegment:
     """A segment after all LLM processing."""
+
     index: int
     cleaned_text: str
     visuals: list[VisualContent]
@@ -66,6 +69,7 @@ class ProcessedSegment:
 # ---------------------------------------------------------------------------
 # Client setup
 # ---------------------------------------------------------------------------
+
 
 def get_client(use_bedrock: Optional[bool] = None):
     """Get Anthropic client, auto-detecting Bedrock vs direct API."""
@@ -196,6 +200,7 @@ Apply the requested revisions while preserving the speaker's voice. Output ONLY 
 # Worker functions (called by tool executors)
 # ---------------------------------------------------------------------------
 
+
 def clean_segment(
     segment_text: str,
     cleanup_model: str = "claude-haiku-4-5-20251001",
@@ -210,9 +215,7 @@ def clean_segment(
         model=model_id,
         max_tokens=4096,
         system=CLEANUP_SYSTEM_PROMPT,
-        messages=[
-            {"role": "user", "content": f"Clean this transcript:\n\n{segment_text}"}
-        ],
+        messages=[{"role": "user", "content": f"Clean this transcript:\n\n{segment_text}"}],
     )
     return message.content[0].text
 
@@ -251,18 +254,22 @@ def analyze_segment_visuals(
     for i, frame in enumerate(segment.frames):
         minutes = int(frame.timestamp // 60)
         seconds = int(frame.timestamp % 60)
-        content.append({
-            "type": "text",
-            "text": f"Frame {i + 1} at {minutes:02d}:{seconds:02d}:",
-        })
-        content.append({
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": _media_type(frame.path),
-                "data": _encode_frame(frame.path),
-            },
-        })
+        content.append(
+            {
+                "type": "text",
+                "text": f"Frame {i + 1} at {minutes:02d}:{seconds:02d}:",
+            }
+        )
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": _media_type(frame.path),
+                    "data": _encode_frame(frame.path),
+                },
+            }
+        )
 
     content.append({"type": "text", "text": VISUAL_ANALYSIS_PROMPT})
 
@@ -283,9 +290,12 @@ def analyze_segment_visuals(
     except json.JSONDecodeError:
         return [
             VisualContent(
-                frame_path=f.path, timestamp=f.timestamp,
-                category="talking_head", extracted_text=None,
-                description=None, include_as_image=False,
+                frame_path=f.path,
+                timestamp=f.timestamp,
+                category="talking_head",
+                extracted_text=None,
+                description=None,
+                include_as_image=False,
             )
             for f in segment.frames
         ]
@@ -294,20 +304,27 @@ def analyze_segment_visuals(
     for i, frame in enumerate(segment.frames):
         if i < len(results):
             r = results[i]
-            visuals.append(VisualContent(
-                frame_path=frame.path,
-                timestamp=frame.timestamp,
-                category=r.get("category", "other"),
-                extracted_text=r.get("extracted_text"),
-                description=r.get("description"),
-                include_as_image=r.get("include_as_image", False),
-            ))
+            visuals.append(
+                VisualContent(
+                    frame_path=frame.path,
+                    timestamp=frame.timestamp,
+                    category=r.get("category", "other"),
+                    extracted_text=r.get("extracted_text"),
+                    description=r.get("description"),
+                    include_as_image=r.get("include_as_image", False),
+                )
+            )
         else:
-            visuals.append(VisualContent(
-                frame_path=frame.path, timestamp=frame.timestamp,
-                category="talking_head", extracted_text=None,
-                description=None, include_as_image=False,
-            ))
+            visuals.append(
+                VisualContent(
+                    frame_path=frame.path,
+                    timestamp=frame.timestamp,
+                    category="talking_head",
+                    extracted_text=None,
+                    description=None,
+                    include_as_image=False,
+                )
+            )
 
     return visuals
 
@@ -504,6 +521,7 @@ Here is a summary of each segment:
 # Segment summary builder
 # ---------------------------------------------------------------------------
 
+
 def _build_segment_summaries(segments: list[VideoSegment]) -> str:
     """Build compact summary of each segment for the agent's context."""
     lines = []
@@ -526,7 +544,7 @@ def _build_segment_summaries(segments: list[VideoSegment]) -> str:
         lines.append(
             f"Segment {seg.index} [{m_start:02d}:{s_start:02d} - {m_end:02d}:{s_end:02d}]: "
             f"{frame_info}\n"
-            f"  Preview: \"{preview}\""
+            f'  Preview: "{preview}"'
         )
     return "\n".join(lines)
 
@@ -534,6 +552,7 @@ def _build_segment_summaries(segments: list[VideoSegment]) -> str:
 # ---------------------------------------------------------------------------
 # Tool execution functions (with disk caching + internal parallelism)
 # ---------------------------------------------------------------------------
+
 
 def _execute_clean_segments(
     indices: list[int],
@@ -573,8 +592,11 @@ def _execute_clean_segments(
             results[idx] = cleaned
             completed += 1
             if on_progress:
-                on_progress("Cleaning segments", f"{completed}/{len(to_process)}",
-                            int(completed / len(to_process) * 30))
+                on_progress(
+                    "Cleaning segments",
+                    f"{completed}/{len(to_process)}",
+                    int(completed / len(to_process) * 30),
+                )
 
     return {
         "status": "success",
@@ -633,8 +655,11 @@ def _execute_analyze_visuals(
             results[idx] = visual_data
             completed += 1
             if on_progress:
-                on_progress("Analyzing visuals", f"{completed}/{len(to_process)}",
-                            30 + int(completed / len(to_process) * 30))
+                on_progress(
+                    "Analyzing visuals",
+                    f"{completed}/{len(to_process)}",
+                    30 + int(completed / len(to_process) * 30),
+                )
 
     # Return summary for the agent
     summary = {}
@@ -699,11 +724,13 @@ def _execute_assemble_document(
                 for v in visual_data
             ]
 
-        processed_segments.append(ProcessedSegment(
-            index=idx,
-            cleaned_text=cleaned_text,
-            visuals=visuals,
-        ))
+        processed_segments.append(
+            ProcessedSegment(
+                index=idx,
+                cleaned_text=cleaned_text,
+                visuals=visuals,
+            )
+        )
 
     if on_progress:
         on_progress("Assembling document", "Structuring...", 70)
@@ -762,7 +789,9 @@ def _execute_assemble_document(
     frames_dir = job_dir / "frames"
     markdown = copy_referenced_frames(markdown, frames_dir, job_dir)
     final_doc = create_markdown_document(
-        title=title, content=markdown, source_video=source_video,
+        title=title,
+        content=markdown,
+        source_video=source_video,
     )
 
     result_path = job_dir / "result.md"
@@ -821,13 +850,15 @@ def _execute_revise_segments(
             model=model_id,
             max_tokens=4096,
             system=REVISION_SYSTEM_PROMPT,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"Current text for segment {idx}:\n\n{current_text}\n\n"
-                    f"Revision instructions:\n{instructions}"
-                ),
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Current text for segment {idx}:\n\n{current_text}\n\n"
+                        f"Revision instructions:\n{instructions}"
+                    ),
+                }
+            ],
         )
         return idx, message.content[0].text
 
@@ -852,6 +883,7 @@ def _execute_revise_segments(
 # Tool dispatcher
 # ---------------------------------------------------------------------------
 
+
 def _dispatch_tool(
     tool_name: str,
     tool_input: dict,
@@ -866,22 +898,29 @@ def _dispatch_tool(
     if tool_name == "clean_segments":
         return _execute_clean_segments(
             indices=tool_input["indices"],
-            segments=segments, job_dir=job_dir,
-            use_bedrock=use_bedrock, on_progress=on_progress,
+            segments=segments,
+            job_dir=job_dir,
+            use_bedrock=use_bedrock,
+            on_progress=on_progress,
         )
     elif tool_name == "analyze_visuals":
         return _execute_analyze_visuals(
             indices=tool_input["indices"],
-            segments=segments, job_dir=job_dir,
-            use_bedrock=use_bedrock, on_progress=on_progress,
+            segments=segments,
+            job_dir=job_dir,
+            use_bedrock=use_bedrock,
+            on_progress=on_progress,
         )
     elif tool_name == "assemble_document":
         return _execute_assemble_document(
             indices=tool_input["indices"],
             structure_hints=tool_input.get("structure_hints", ""),
-            segments=segments, job_dir=job_dir,
-            title=title, source_video=source_video,
-            use_bedrock=use_bedrock, on_progress=on_progress,
+            segments=segments,
+            job_dir=job_dir,
+            title=title,
+            source_video=source_video,
+            use_bedrock=use_bedrock,
+            on_progress=on_progress,
         )
     elif tool_name == "review_document":
         return _execute_review_document(job_dir=job_dir)
@@ -889,8 +928,10 @@ def _dispatch_tool(
         return _execute_revise_segments(
             indices=tool_input["indices"],
             instructions=tool_input["instructions"],
-            segments=segments, job_dir=job_dir,
-            use_bedrock=use_bedrock, on_progress=on_progress,
+            segments=segments,
+            job_dir=job_dir,
+            use_bedrock=use_bedrock,
+            on_progress=on_progress,
         )
     else:
         return {"status": "error", "error": f"Unknown tool: {tool_name}"}
@@ -899,6 +940,7 @@ def _dispatch_tool(
 # ---------------------------------------------------------------------------
 # Agent loop (Opus 4.6 orchestrator + reviewer)
 # ---------------------------------------------------------------------------
+
 
 def run_agent_loop(
     video_segments: list[VideoSegment],
@@ -943,7 +985,7 @@ def run_agent_loop(
             "role": "user",
             "content": (
                 f"Process all {len(video_segments)} segments into a markdown document. "
-                f"The video is titled \"{title}\". Plan your approach, then use the tools."
+                f'The video is titled "{title}". Plan your approach, then use the tools.'
             ),
         }
     ]
@@ -994,24 +1036,38 @@ def run_agent_loop(
             tc = tool_calls[0]
             try:
                 result = _dispatch_tool(
-                    tc.name, tc.input, video_segments, job_dir,
-                    title, source_video, use_bedrock, on_progress,
+                    tc.name,
+                    tc.input,
+                    video_segments,
+                    job_dir,
+                    title,
+                    source_video,
+                    use_bedrock,
+                    on_progress,
                 )
             except Exception as e:
                 logger.error(f"Tool {tc.name} failed: {e}", exc_info=True)
                 result = {"status": "error", "error": str(e)}
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": tc.id,
-                "content": json.dumps(result),
-            })
+            tool_results.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": tc.id,
+                    "content": json.dumps(result),
+                }
+            )
         else:
             with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
                 futures = {
                     executor.submit(
                         _dispatch_tool,
-                        tc.name, tc.input, video_segments, job_dir,
-                        title, source_video, use_bedrock, on_progress,
+                        tc.name,
+                        tc.input,
+                        video_segments,
+                        job_dir,
+                        title,
+                        source_video,
+                        use_bedrock,
+                        on_progress,
                     ): tc
                     for tc in tool_calls
                 }
@@ -1022,11 +1078,13 @@ def run_agent_loop(
                     except Exception as e:
                         logger.error(f"Tool {tc.name} failed: {e}", exc_info=True)
                         result = {"status": "error", "error": str(e)}
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tc.id,
-                        "content": json.dumps(result),
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tc.id,
+                            "content": json.dumps(result),
+                        }
+                    )
 
         messages.append({"role": "user", "content": tool_results})
 

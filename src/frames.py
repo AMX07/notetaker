@@ -11,17 +11,15 @@ from pathlib import Path
 @dataclass
 class ExtractedFrame:
     """A frame extracted from a video."""
+
     path: Path
-    timestamp: float    # seconds into the video
-    source: str         # "interval" or "scene_change"
+    timestamp: float  # seconds into the video
+    source: str  # "interval" or "scene_change"
 
 
 def frames_to_json(frames: list[ExtractedFrame], path: Path) -> None:
     """Serialize extracted frames list to a JSON file."""
-    data = [
-        {"path": str(f.path), "timestamp": f.timestamp, "source": f.source}
-        for f in frames
-    ]
+    data = [{"path": str(f.path), "timestamp": f.timestamp, "source": f.source} for f in frames]
     path.write_text(json.dumps(data, indent=2))
 
 
@@ -57,12 +55,17 @@ def extract_frames_interval(
     pattern = str(output_dir / "interval_%06d.jpg")
 
     cmd = [
-        "ffmpeg", "-i", str(video_path),
-        "-vf", f"fps=1/{interval_seconds},scale='min({max_width},iw)':-1",
-        "-qscale:v", str(quality),
-        "-y", pattern,
+        "ffmpeg",
+        "-i",
+        str(video_path),
+        "-vf",
+        f"fps=1/{interval_seconds},scale='min({max_width},iw)':-1",
+        "-qscale:v",
+        str(quality),
+        "-y",
+        pattern,
     ]
-    subprocess.run(cmd, capture_output=True, check=True)
+    subprocess.run(cmd, capture_output=True, check=True, timeout=300)
 
     frames = []
     for f in sorted(output_dir.glob("interval_*.jpg")):
@@ -101,32 +104,21 @@ def extract_frames_scene_change(
     # We need to get the timestamps of scene changes, so use -showinfo and parse
     pattern = str(output_dir / "scene_%06d.jpg")
 
-    cmd = [
-        "ffmpeg", "-i", str(video_path),
-        "-vf", (
-            f"select='gt(scene\\,{threshold})',"
-            f"scale='min({max_width},iw)':-1"
-        ),
-        "-vsync", "vfr",
-        "-frame_pts", "1",
-        "-qscale:v", str(quality),
-        "-y", pattern,
-    ]
-
-    # Run with showinfo to capture timestamps
-    # Alternative: use -vf "select=...,showinfo" and parse stderr
+    # Run with showinfo to capture timestamps from stderr
     cmd_with_info = [
-        "ffmpeg", "-i", str(video_path),
-        "-vf", (
-            f"select='gt(scene\\,{threshold})',"
-            f"scale='min({max_width},iw)':-1,"
-            "showinfo"
-        ),
-        "-vsync", "vfr",
-        "-qscale:v", str(quality),
-        "-y", pattern,
+        "ffmpeg",
+        "-i",
+        str(video_path),
+        "-vf",
+        (f"select='gt(scene\\,{threshold})',scale='min({max_width},iw)':-1,showinfo"),
+        "-vsync",
+        "vfr",
+        "-qscale:v",
+        str(quality),
+        "-y",
+        pattern,
     ]
-    result = subprocess.run(cmd_with_info, capture_output=True, text=True)
+    result = subprocess.run(cmd_with_info, capture_output=True, text=True, timeout=300)
 
     # Parse timestamps from showinfo output in stderr
     frames = []
@@ -179,11 +171,19 @@ def extract_frames_hybrid(
     with ThreadPoolExecutor(max_workers=2) as executor:
         interval_future = executor.submit(
             extract_frames_interval,
-            video_path, interval_dir, interval_seconds, max_width, quality,
+            video_path,
+            interval_dir,
+            interval_seconds,
+            max_width,
+            quality,
         )
         scene_future = executor.submit(
             extract_frames_scene_change,
-            video_path, scene_dir, scene_threshold, max_width, quality,
+            video_path,
+            scene_dir,
+            scene_threshold,
+            max_width,
+            quality,
         )
         interval_frames = interval_future.result()
         scene_frames = scene_future.result()
@@ -193,10 +193,7 @@ def extract_frames_hybrid(
     interval_timestamps = {f.timestamp for f in interval_frames}
     deduplicated_scene = []
     for sf in scene_frames:
-        too_close = any(
-            abs(sf.timestamp - it) < dedup_window
-            for it in interval_timestamps
-        )
+        too_close = any(abs(sf.timestamp - it) < dedup_window for it in interval_timestamps)
         if not too_close:
             deduplicated_scene.append(sf)
 

@@ -32,6 +32,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "smoke: tests that require live API keys (deselect with -m 'not smoke')",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

@@ -18,6 +18,11 @@ const errorSection = document.getElementById("error-section");
 const errorMessage = document.getElementById("error-message");
 const retryBtn = document.getElementById("retry-btn");
 
+const exampleBtn = document.getElementById("example-btn");
+const exampleModal = document.getElementById("example-modal");
+const closeModal = document.getElementById("close-modal");
+const exampleOutput = document.getElementById("example-output");
+
 let selectedFile = null;
 let currentJobId = null;
 let pollInterval = null;
@@ -92,7 +97,7 @@ uploadForm.addEventListener("submit", async (e) => {
 
         if (!res.ok) {
             const err = await res.json().catch(() => null);
-            throw new Error(err?.detail || `Upload failed: ${res.statusText}`);
+            throw new Error(friendlyError(res.status, err?.detail));
         }
 
         const data = await res.json();
@@ -131,7 +136,8 @@ async function pollStatus() {
             resultSection.hidden = false;
         } else if (data.status === "error") {
             clearInterval(pollInterval);
-            showError(data.error || "Unknown error");
+            const stage = data.stage ? ` (at: ${data.stage})` : "";
+            showError((data.error || "Unknown error") + stage);
         }
     } catch (err) {
         clearInterval(pollInterval);
@@ -166,9 +172,44 @@ retryBtn.addEventListener("click", resetUI);
 
 // --- Error ---
 
+const ERROR_MESSAGES = {
+    413: "Video is too large (max 2 GB). Try a shorter or lower-resolution video.",
+    429: "Too many requests. Please wait a few minutes and try again.",
+    503: "Server is busy. Please try again later.",
+    400: "Invalid file. Please upload a supported video format (MP4, MKV, MOV, WebM, AVI).",
+};
+
+function friendlyError(status, fallback) {
+    return ERROR_MESSAGES[status] || fallback || "Something went wrong.";
+}
+
 function showError(msg) {
     progressSection.hidden = true;
     resultSection.hidden = true;
     errorSection.hidden = false;
     errorMessage.textContent = msg;
 }
+
+// --- Example Modal ---
+
+exampleBtn.addEventListener("click", async () => {
+    exampleModal.hidden = false;
+    if (!exampleOutput.dataset.loaded) {
+        try {
+            const res = await fetch("/static/example-output.md");
+            const text = await res.text();
+            exampleOutput.textContent = text;
+            exampleOutput.dataset.loaded = "1";
+        } catch {
+            exampleOutput.textContent = "Failed to load example.";
+        }
+    }
+});
+
+closeModal.addEventListener("click", () => {
+    exampleModal.hidden = true;
+});
+
+exampleModal.addEventListener("click", (e) => {
+    if (e.target === exampleModal) exampleModal.hidden = true;
+});
