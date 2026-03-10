@@ -8,6 +8,7 @@ import base64
 import json
 import logging
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,7 +52,7 @@ class VisualContent:
 
     frame_path: Path
     timestamp: float
-    category: str  # "code", "math", "diagram", "text", "talking_head", "other"
+    category: str  # "code", "math", "diagram", "visual_reference", "text", "talking_head", "other"
     extracted_text: str | None
     description: str | None
     include_as_image: bool
@@ -152,16 +153,26 @@ Your output must be the cleaned transcript text and nothing else."""
 
 VISUAL_ANALYSIS_PROMPT = """You are analyzing video frames from a lecture. For each frame, output a JSON array with one object per frame.
 
+You also receive the transcript context for these frames. Use it to understand what the speaker is discussing and referencing.
+
 For each frame determine:
-1. **category**: one of "code", "math", "diagram", "text", "talking_head", "other"
+1. **category**: one of "code", "math", "diagram", "visual_reference", "text", "talking_head", "other"
+   - "visual_reference": use when the frame shows content the speaker explicitly references (e.g., terminal output, browser window, application UI, plot, histogram, training progress) but doesn't fit "code", "math", or "diagram".
 2. **extracted_text**: For "code" frames, extract the code exactly. For "math" frames, write LaTeX. For "text" frames, extract key text. For others, null.
-3. **description**: For "diagram" frames, a 1-2 sentence description. For others, null.
-4. **include_as_image**: true ONLY for diagrams/charts that cannot be represented as text. False for everything else.
+3. **description**: For "diagram" and "visual_reference" frames, a 1-2 sentence description of what the frame shows. For others, null.
+4. **include_as_image**: Set to true for:
+   - Diagrams and charts that cannot be represented as text
+   - ANY frame showing content the speaker explicitly references or describes in the transcript (e.g., "look at this graph", "we can see the output", "as shown here", "this histogram shows")
+   - Terminal output, application windows, browser screenshots, plots, or visualizations that the reader needs to see to follow the lecture
+   Set to false ONLY for:
+   - Pure talking-head frames (speaker's face with no meaningful visual content)
+   - Frames where the visual content has been fully captured as extracted_text (e.g., a simple code snippet already extracted verbatim)
 
 Output ONLY a JSON array, no explanation. Example:
 [
   {"category": "code", "extracted_text": "import torch\\nx = torch.tensor([1,2,3])", "description": null, "include_as_image": false},
-  {"category": "talking_head", "extracted_text": null, "description": null, "include_as_image": false}
+  {"category": "talking_head", "extracted_text": null, "description": null, "include_as_image": false},
+  {"category": "visual_reference", "extracted_text": null, "description": "Terminal showing training loss decreasing over epochs", "include_as_image": true}
 ]"""
 
 
@@ -172,19 +183,51 @@ You receive a sequence of cleaned transcript segments, each with visual content 
 Your job:
 1. Determine where to place headings (## h2) and subheadings (### h3) based on topic transitions.
    - Use the speaker's own words when possible for heading text.
-   - Keep headings lowercase.
+   - Use title case for headings (capitalize major words, lowercase articles/prepositions like "a", "the", "in", "of", "for").
    - Place a heading when the speaker moves to a new major topic.
    - Only use subheadings if a section exceeds ~500 words with sub-topic changes.
 
 2. Integrate visual content:
    - Insert ```python (or appropriate language) code blocks where the speaker discusses code.
    - Insert $$ LaTeX blocks where math formulas are discussed.
-   - Insert ![description](path) for diagrams that need to be images.
+   - Insert ![description](path) for diagrams AND visual references marked with IMAGE: — these are frames the speaker explicitly referenced that readers need to see to follow along.
    - Use the extracted text from visual analysis — do NOT invent content.
 
-3. Preserve the speaker's voice completely. Do not paraphrase.
+3. Code explanation formatting:
+   - When the speaker explains code step-by-step or line-by-line, break it into logical sections.
+   - Each logical section (imports, data loading, model definition, training loop, etc.) gets its OWN code block.
+   - The speaker's explanation for each section goes as regular prose IMMEDIATELY BEFORE its code block.
+   - Do NOT create one giant code block containing all the code.
+   - Do NOT put the speaker's explanations as comments inside code blocks.
+   - The pattern is: explanation paragraph, then code block, then explanation paragraph, then code block.
+   - Example:
 
-4. Output ONLY the final markdown content. No meta-commentary."""
+     First we import the necessary libraries and set up our data path.
+
+     ```python
+     import torch
+     from pathlib import Path
+     data_dir = Path("./data")
+     ```
+
+     Then we define the model architecture with two hidden layers.
+
+     ```python
+     model = nn.Sequential(
+         nn.Linear(784, 256),
+         nn.ReLU(),
+         nn.Linear(256, 10),
+     )
+     ```
+
+4. Preserve the speaker's voice completely. Do not paraphrase.
+
+5. Formatting:
+   - Ensure a blank line between every paragraph.
+   - Ensure a blank line before and after every code block, math block, and image.
+   - Do NOT collapse multiple paragraphs into a single dense block of text.
+
+6. Output ONLY the final markdown content. No meta-commentary."""
 
 
 REVISION_SYSTEM_PROMPT = """You are revising specific segments of a lecture transcript based on reviewer feedback.
@@ -347,7 +390,7 @@ def _build_assembly_prompt(segments: list[ProcessedSegment]) -> str:
                 if v.description:
                     note += f" Description: {v.description}"
                 if v.include_as_image:
-                    note += f" Image: {v.frame_path.name}"
+                    note += f" IMAGE: {v.frame_path.name}"
                 visual_notes.append(note)
             if visual_notes:
                 parts.append("Visual content:\n" + "\n".join(visual_notes))
@@ -432,13 +475,22 @@ AGENT_TOOLS = [
     {
         "name": "review_document",
         "description": (
-            "Read the current assembled result.md for review. "
-            "Returns the full markdown content so you can evaluate quality. "
-            "Call this after assemble_document to review the output."
+            "Read the assembled result.md for review. "
+            "Without arguments: returns document metadata (total length, headings list, number of chunks). "
+            "With chunk=N: returns the Nth chunk (~20k chars, split at heading boundaries). "
+            "Call this after assemble_document. Review ALL chunks for thorough quality control."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {},
+            "properties": {
+                "chunk": {
+                    "type": "integer",
+                    "description": (
+                        "Chunk number to retrieve (1-indexed). "
+                        "Omit to get document overview with total chunks and headings list."
+                    ),
+                }
+            },
         },
     },
     {
@@ -489,7 +541,7 @@ Here is a summary of each segment:
 1. **clean_segments(indices)** — Grammar cleanup (fast Haiku model). Run on ALL segments.
 2. **analyze_visuals(indices)** — Frame analysis (Sonnet vision). SKIP segments with only talking-head frames — check the frame summary to decide.
 3. **assemble_document(indices, structure_hints)** — Structure + assemble markdown (Sonnet). Provide detailed structure_hints based on your content understanding.
-4. **review_document()** — Read the assembled result.md for quality review.
+4. **review_document()** — Get document overview (total length, headings list, number of chunks). **review_document(chunk=N)** — Read chunk N for detailed review.
 5. **revise_segments(indices, instructions)** — Re-process specific segments with your feedback.
 
 ## Your workflow
@@ -500,19 +552,21 @@ Here is a summary of each segment:
 3. Call assemble_document with all indices and your structure_hints.
 
 ### Phase B — Review
-4. Call review_document to read the assembled markdown.
-5. Evaluate the document against these criteria:
-   - Are headings well-placed and descriptive (using the speaker's own words)?
+4. Call review_document() (no arguments) to get the document overview: total length, number of chunks, and heading list.
+5. Call review_document(chunk=N) for EACH chunk (1 through num_chunks). You may call multiple chunks in the same response for parallel retrieval.
+6. Evaluate the ENTIRE document against these criteria:
+   - Are headings well-placed, descriptive, and properly capitalized in title case (using the speaker's own words)?
    - Is code/math properly extracted and formatted?
+   - When the speaker explains code step-by-step, is it broken into separate code blocks with explanation prose before each? (NOT one giant code block, NOT comments inside code.)
    - Is the speaker's voice preserved (no paraphrasing)?
    - Are there awkward transitions between segments?
    - Is any content missing or duplicated?
-6. If the document is good, return it as your final text response.
-7. If revisions are needed, call revise_segments with specific instructions, then call assemble_document again, then review again.
+   - Are speaker-referenced visuals ("look at this graph", "we see this histogram", "as shown here") included as images?
+7. If the document is good, respond with "APPROVED".
+8. If revisions are needed, call revise_segments with specific instructions, then call assemble_document again, then review again. Repeat until no new revisions are needed.
 
 ## Important
 - You can call multiple tools in one response — they execute in parallel.
-- Maximum 2 revision cycles to avoid excessive cost.
 - When done, respond with ONLY the text "APPROVED" — the final document is already saved.
 - Your value is in PLANNING (which segments need visuals, structure hints) and REVIEWING (catching quality issues)."""
 
@@ -672,6 +726,7 @@ def _execute_analyze_visuals(
             "has_code": any(c == "code" for c in categories),
             "has_math": any(c == "math" for c in categories),
             "has_diagram": any(c == "diagram" for c in categories),
+            "has_visual_reference": any(c == "visual_reference" for c in categories),
             "all_talking_head": all(c == "talking_head" for c in categories),
         }
 
@@ -804,23 +859,79 @@ def _execute_assemble_document(
     }
 
 
-def _execute_review_document(job_dir: Path) -> dict:
-    """Execute review_document tool — reads result.md for agent review."""
+REVIEW_CHUNK_SIZE = 20000  # ~20k chars per chunk for review
+
+
+def _split_document_into_chunks(content: str, chunk_size: int = REVIEW_CHUNK_SIZE) -> list[str]:
+    """Split document at heading boundaries into chunks of ~chunk_size chars.
+
+    Finds all ## and ### heading positions and groups sections so each chunk
+    stays under chunk_size. If the document is shorter than chunk_size,
+    returns a single chunk.
+    """
+    if len(content) <= chunk_size:
+        return [content]
+
+    # Find heading positions (## or ###)
+    heading_pattern = re.compile(r"^#{2,3}\s+", re.MULTILINE)
+    heading_positions = [m.start() for m in heading_pattern.finditer(content)]
+
+    if not heading_positions:
+        # No headings — split at chunk_size boundaries
+        return [content[i : i + chunk_size] for i in range(0, len(content), chunk_size)]
+
+    # Group sections into chunks that stay under chunk_size
+    chunks: list[str] = []
+    current_start = 0
+
+    for pos in heading_positions:
+        # If adding this section would exceed chunk_size, finalize current chunk
+        if pos - current_start >= chunk_size and pos > current_start:
+            chunks.append(content[current_start:pos])
+            current_start = pos
+
+    # Append remaining content
+    if current_start < len(content):
+        chunks.append(content[current_start:])
+
+    return chunks
+
+
+def _execute_review_document(job_dir: Path, chunk: int | None = None) -> dict:
+    """Execute review_document tool — supports chunked reading for full review.
+
+    Without chunk parameter: returns document metadata (length, headings, chunk count).
+    With chunk=N: returns the Nth chunk (1-indexed) of ~20k chars split at headings.
+    """
     result_path = job_dir / "result.md"
     if not result_path.exists():
         return {"status": "error", "error": "No result.md found. Call assemble_document first."}
 
     content = result_path.read_text()
-    # Truncate for agent context if very long (keep first + last sections)
-    if len(content) > 30000:
-        head = content[:15000]
-        tail = content[-15000:]
-        content = head + "\n\n[... middle sections omitted for brevity ...]\n\n" + tail
+    chunks = _split_document_into_chunks(content)
+
+    if chunk is None:
+        # Return overview metadata
+        headings = re.findall(r"^(#{2,3})\s+(.+)$", content, re.MULTILINE)
+        heading_list = [f"{h[0]} {h[1]}" for h in headings]
+        return {
+            "status": "success",
+            "total_length": len(content),
+            "num_chunks": len(chunks),
+            "chunk_lengths": [len(c) for c in chunks],
+            "headings": heading_list,
+        }
+
+    # Return specific chunk (1-indexed)
+    if chunk < 1 or chunk > len(chunks):
+        return {"status": "error", "error": f"Chunk {chunk} out of range (1-{len(chunks)})"}
 
     return {
         "status": "success",
-        "content": content,
-        "length": len(result_path.read_text()),
+        "chunk": chunk,
+        "total_chunks": len(chunks),
+        "content": chunks[chunk - 1],
+        "length": len(chunks[chunk - 1]),
     }
 
 
@@ -923,7 +1034,10 @@ def _dispatch_tool(
             on_progress=on_progress,
         )
     elif tool_name == "review_document":
-        return _execute_review_document(job_dir=job_dir)
+        return _execute_review_document(
+            job_dir=job_dir,
+            chunk=tool_input.get("chunk"),
+        )
     elif tool_name == "revise_segments":
         return _execute_revise_segments(
             indices=tool_input["indices"],

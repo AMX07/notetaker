@@ -64,10 +64,11 @@ It must NOT rewrite, paraphrase, or restructure anything.
 ### Smart Visual Handling
 - Code/math frames → extracted as text (code blocks, LaTeX)
 - Diagrams → kept as images
+- Speaker-referenced visuals (histograms, terminal output, plots) → kept as images
 - Talking head frames → skipped entirely
 
 ### Output Format
-Markdown (.md) with lowercase headings, first-person voice preserved.
+Markdown (.md) with title-case headings, first-person voice preserved.
 
 ## System Requirements
 - **ffmpeg** + **ffprobe** (system install)
