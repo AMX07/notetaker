@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import shutil
 import threading
 import time
@@ -18,8 +19,9 @@ from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
+from fastapi import Depends, FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 
 from .audio import extract_audio
@@ -50,6 +52,22 @@ FFMPEG_TIMEOUT_SECONDS = 300  # 5 min per ffmpeg call
 # Rate limiting — simple in-memory tracker (per-IP, per-hour)
 UPLOAD_RATE_LIMIT = int(os.environ.get("UPLOAD_RATE_LIMIT", "5"))  # requests per hour
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
+
+# Authentication — optional HTTP Basic Auth (set NOTETAKER_PASSWORD in .env to enable)
+security = HTTPBasic(auto_error=False)
+AUTH_PASSWORD = os.environ.get("NOTETAKER_PASSWORD", "")
+
+
+def verify_auth(credentials: HTTPBasicCredentials | None = Depends(security)):
+    """Verify HTTP Basic Auth credentials if NOTETAKER_PASSWORD is set."""
+    if not AUTH_PASSWORD:
+        return
+    if not credentials or not secrets.compare_digest(credentials.password, AUTH_PASSWORD):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 
 def _check_rate_limit(client_ip: str) -> int | None:
@@ -269,7 +287,7 @@ def _validate_environment() -> None:
 # ---------------------------------------------------------------------------
 
 
-@app.get("/", include_in_schema=False)
+@app.get("/", include_in_schema=False, dependencies=[Depends(verify_auth)])
 async def index():
     """Serve the frontend."""
     index_path = STATIC_DIR / "index.html"
@@ -278,7 +296,7 @@ async def index():
     return FileResponse(index_path)
 
 
-@app.post("/api/convert", summary="Upload video and start conversion", tags=["Jobs"])
+@app.post("/api/convert", summary="Upload video and start conversion", tags=["Jobs"], dependencies=[Depends(verify_auth)])
 async def start_conversion(
     request: Request,
     video: UploadFile = File(...),
@@ -362,7 +380,7 @@ async def start_conversion(
     return {"job_id": job_id}
 
 
-@app.post("/api/resume/{job_id}", summary="Resume a failed job", tags=["Jobs"])
+@app.post("/api/resume/{job_id}", summary="Resume a failed job", tags=["Jobs"], dependencies=[Depends(verify_auth)])
 async def resume_job(job_id: str):
     """Resume a failed or incomplete job from its last checkpoint."""
     job_dir = JOBS_DIR / job_id
@@ -402,7 +420,7 @@ async def resume_job(job_id: str):
     return {"job_id": job_id, "message": "Resuming from last checkpoint"}
 
 
-@app.get("/api/status/{job_id}", summary="Get job status", tags=["Jobs"])
+@app.get("/api/status/{job_id}", summary="Get job status", tags=["Jobs"], dependencies=[Depends(verify_auth)])
 async def get_status(job_id: str):
     """Get the processing status of a job including progress percentage and current stage."""
     if job_id not in jobs:
@@ -418,7 +436,7 @@ async def get_status(job_id: str):
     }
 
 
-@app.get("/api/jobs", summary="List all jobs", tags=["Jobs"])
+@app.get("/api/jobs", summary="List all jobs", tags=["Jobs"], dependencies=[Depends(verify_auth)])
 async def list_jobs():
     """List all jobs with their current status."""
     return [
@@ -439,7 +457,7 @@ async def health():
     return {"status": "ok", "version": "0.2.0", "active_jobs": active}
 
 
-@app.delete("/api/jobs/{job_id}", summary="Delete a job", tags=["Jobs"])
+@app.delete("/api/jobs/{job_id}", summary="Delete a job", tags=["Jobs"], dependencies=[Depends(verify_auth)])
 async def delete_job(job_id: str):
     """Delete a job and its files. Cannot delete a job that is currently processing."""
     if not re.fullmatch(r"[a-f0-9\-]{8}", job_id):
@@ -454,7 +472,7 @@ async def delete_job(job_id: str):
     return {"status": "deleted"}
 
 
-@app.get("/api/download/{job_id}", summary="Download result", tags=["Jobs"])
+@app.get("/api/download/{job_id}", summary="Download result", tags=["Jobs"], dependencies=[Depends(verify_auth)])
 async def download_result(job_id: str):
     """Download the generated markdown file for a completed job."""
     if job_id not in jobs:

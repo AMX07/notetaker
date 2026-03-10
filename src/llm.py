@@ -5,6 +5,7 @@ and reviews the output, requesting revisions if needed.
 """
 
 import base64
+import difflib
 import json
 import logging
 import os
@@ -134,19 +135,21 @@ def _is_bedrock(client) -> bool:
 CLEANUP_SYSTEM_PROMPT = """You are a transcript copy-editor. You make ONLY the following corrections:
 
 1. Fix grammar errors (subject-verb agreement, tense, articles).
-2. Remove meaningless filler: "um", "uh", "you know", "like" (when filler).
-3. Remove word-level stutters and false starts.
-4. Fix obvious transcription errors (wrong homophones, garbled words).
-5. Format code/technical references with backticks: `variable_name`, `torch.tensor`.
-6. Add paragraph breaks every 3-5 sentences for readability.
+2. Add missing punctuation: insert commas, periods, and other punctuation where the speaker's natural pauses and clause boundaries indicate them. Split run-on sentences at natural clause boundaries.
+3. Remove meaningless filler: "um", "uh", "you know", "like" (when filler), "right" (when filler). Reduce excessive sentence-initial "So" — keep the first in a sequence but remove repetitive ones.
+4. Remove word-level stutters, false starts, and immediate self-repetitions (e.g., "we are building X as part of X will do Y" → "we are building X which will do Y").
+5. Fix obvious transcription errors (wrong homophones, garbled words).
+6. Format code/technical references with backticks: `variable_name`, `torch.tensor`.
+7. Add paragraph breaks every 3-5 sentences for readability.
 
 CRITICAL — DO NOT:
-- Rewrite, paraphrase, or restructure ANY sentence.
-- Change the speaker's word choices or phrasing.
+- Rewrite or paraphrase — keep the speaker's own words and phrasing.
+- Change the speaker's word choices, vocabulary, or level of formality.
 - Remove personality, humor, or teaching asides.
-- Add content that was not spoken.
+- Add content or explanations that were not spoken.
 - Change first-person voice.
 - Add formatting like bullet points, bold, or headings.
+- Remove meaningful repetition used for emphasis (only remove accidental self-repetition from speech).
 
 Your output must be the cleaned transcript text and nothing else."""
 
@@ -167,6 +170,8 @@ For each frame determine:
    Set to false ONLY for:
    - Pure talking-head frames (speaker's face with no meaningful visual content)
    - Frames where the visual content has been fully captured as extracted_text (e.g., a simple code snippet already extracted verbatim)
+
+5. **deduplication**: If multiple frames in this segment show essentially the same content (e.g., same web page, same code file, same slide with minor scrolling), set include_as_image to true ONLY for the most complete/representative frame. Set the others to false.
 
 Output ONLY a JSON array, no explanation. Example:
 [
@@ -192,6 +197,7 @@ Your job:
    - Insert $$ LaTeX blocks where math formulas are discussed.
    - Insert ![description](path) for diagrams AND visual references marked with IMAGE: — these are frames the speaker explicitly referenced that readers need to see to follow along.
    - Use the extracted text from visual analysis — do NOT invent content.
+   - When multiple IMAGE: markers appear with very similar descriptions (e.g., consecutive frames of the same page, repo, or screen), include ONLY the last one — it likely shows the most complete view.
 
 3. Code explanation formatting:
    - When the speaker explains code step-by-step or line-by-line, break it into logical sections.
@@ -200,6 +206,7 @@ Your job:
    - Do NOT create one giant code block containing all the code.
    - Do NOT put the speaker's explanations as comments inside code blocks.
    - The pattern is: explanation paragraph, then code block, then explanation paragraph, then code block.
+   - When the speaker incrementally builds a class or function (adding one method/feature at a time), do NOT repeat the entire unchanged code each time. Show only the new or changed portion, using a comment like `# ... (previous code unchanged)` for context. Only show the full code when it first appears or when the final complete version is needed.
    - Example:
 
      First we import the necessary libraries and set up our data path.
@@ -372,8 +379,50 @@ def analyze_segment_visuals(
     return visuals
 
 
+def _deduplicate_images(segments: list[ProcessedSegment]) -> set[tuple[int, str]]:
+    """Find near-duplicate images across segments. Returns set of (seg_index, frame_name) to suppress."""
+    # Collect all include_as_image visuals sorted by timestamp
+    all_images: list[tuple[int, VisualContent]] = []
+    for seg in segments:
+        for v in seg.visuals:
+            if v.include_as_image and v.category != "talking_head":
+                all_images.append((seg.index, v))
+    all_images.sort(key=lambda x: x[1].timestamp)
+
+    # Walk through and suppress earlier duplicates (keep later frame — may show more content)
+    suppressed: set[tuple[int, str]] = set()
+    i = 0
+    while i < len(all_images):
+        j = i + 1
+        # Find the end of a run of near-duplicates
+        while j < len(all_images):
+            seg_i, vi = all_images[j - 1]
+            seg_j, vj = all_images[j]
+            desc_i = (vi.description or "").lower()
+            desc_j = (vj.description or "").lower()
+            if (
+                vi.category == vj.category
+                and (vj.timestamp - vi.timestamp) < 30.0
+                and desc_i
+                and desc_j
+                and difflib.SequenceMatcher(None, desc_i, desc_j).ratio() > 0.5
+            ):
+                j += 1
+            else:
+                break
+        # Suppress all but the last in the run
+        for k in range(i, j - 1):
+            seg_idx, v = all_images[k]
+            suppressed.add((seg_idx, v.frame_path.name))
+        i = j
+
+    return suppressed
+
+
 def _build_assembly_prompt(segments: list[ProcessedSegment]) -> str:
     """Build the assembly prompt from processed segments."""
+    suppressed = _deduplicate_images(segments)
+
     parts = []
     for seg in segments:
         parts.append(f"--- Segment {seg.index + 1} ---")
@@ -389,7 +438,7 @@ def _build_assembly_prompt(segments: list[ProcessedSegment]) -> str:
                     note += f" {v.extracted_text}"
                 if v.description:
                     note += f" Description: {v.description}"
-                if v.include_as_image:
+                if v.include_as_image and (seg.index, v.frame_path.name) not in suppressed:
                     note += f" IMAGE: {v.frame_path.name}"
                 visual_notes.append(note)
             if visual_notes:
