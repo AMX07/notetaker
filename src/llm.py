@@ -420,9 +420,64 @@ def _deduplicate_images(segments: list[ProcessedSegment]) -> set[tuple[int, str]
     return suppressed
 
 
+def _format_code_for_assembly(
+    code: str, seg_index: int, recent_code: list[tuple[int, str]]
+) -> str:
+    """Return the code annotation for the assembly prompt.
+
+    If the code is ≥60% similar (line-level) to a recently seen code block,
+    this is an incremental update — only the added/changed lines are returned
+    with a header directing the assembly model to use '# ... (previous code
+    unchanged)' markers. This prevents the assembled document from repeating
+    the full class/function multiple times when a speaker builds it up step
+    by step.
+
+    Returns the full code prefixed with a space when it is new/distinct.
+    """
+    for prev_seg_idx, prev_code in reversed(recent_code[-3:]):
+        prev_lines = prev_code.splitlines()
+        curr_lines = code.splitlines()
+        ratio = difflib.SequenceMatcher(None, prev_lines, curr_lines).ratio()
+        if ratio < 0.6:
+            continue
+
+        # Compute the changed/added lines using opcode-level diffing
+        added: list[str] = []
+        removed: list[str] = []
+        for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, prev_lines, curr_lines
+        ).get_opcodes():
+            if tag in ("insert", "replace"):
+                added.extend(curr_lines[j1:j2])
+            if tag in ("delete", "replace"):
+                removed.extend(prev_lines[i1:i2])
+
+        if not added and not removed:
+            return f" [DUPLICATE CODE from segment {prev_seg_idx + 1} — do not repeat in output]"
+
+        header = (
+            f" [INCREMENTAL UPDATE extending segment {prev_seg_idx + 1} code"
+            f" — show only new/changed lines; use '# ... (previous code unchanged)'"
+            f" to mark unchanged parts]"
+        )
+        if added:
+            shown = added[:8]
+            header += "\nNew/changed lines:\n" + "\n".join(f"+ {line}" for line in shown)
+            if len(added) > 8:
+                header += f"\n... ({len(added) - 8} more additions)"
+        return header
+
+    # No matching prior code — show in full
+    return f" {code}"
+
+
 def _build_assembly_prompt(segments: list[ProcessedSegment]) -> str:
     """Build the assembly prompt from processed segments."""
     suppressed = _deduplicate_images(segments)
+
+    # Track recent code blocks to detect incremental class/function building.
+    # list of (seg_index, code_text); capped at 5 entries.
+    recent_code: list[tuple[int, str]] = []
 
     parts = []
     for seg in segments:
@@ -436,7 +491,13 @@ def _build_assembly_prompt(segments: list[ProcessedSegment]) -> str:
                     continue
                 note = f"[{v.category}]"
                 if v.extracted_text:
-                    note += f" {v.extracted_text}"
+                    if v.category == "code":
+                        note += _format_code_for_assembly(v.extracted_text, seg.index, recent_code)
+                        recent_code.append((seg.index, v.extracted_text))
+                        if len(recent_code) > 5:
+                            recent_code.pop(0)
+                    else:
+                        note += f" {v.extracted_text}"
                 if v.description:
                     note += f" Description: {v.description}"
                 if v.include_as_image and (seg.index, v.frame_path.name) not in suppressed:
