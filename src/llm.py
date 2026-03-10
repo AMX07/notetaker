@@ -115,6 +115,7 @@ def get_model_id(model: str, use_bedrock: bool) -> str:
     # Use cross-region inference profiles (us.anthropic.*) — required for on-demand
     bedrock_models = {
         "claude-opus-4-6": "us.anthropic.claude-opus-4-6-v1",
+        "claude-sonnet-4-6": "us.anthropic.claude-sonnet-4-6-v1",
         "claude-opus-4-20250514": "us.anthropic.claude-opus-4-20250514-v1:0",
         "claude-sonnet-4-20250514": "us.anthropic.claude-sonnet-4-20250514-v1:0",
         "claude-haiku-4-5-20251001": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
@@ -154,9 +155,9 @@ CRITICAL — DO NOT:
 Your output must be the cleaned transcript text and nothing else."""
 
 
-VISUAL_ANALYSIS_PROMPT = """You are analyzing video frames from a lecture. For each frame, output a JSON array with one object per frame.
+VISUAL_ANALYSIS_PROMPT = """You are analyzing video frames from a lecture. You will receive a transcript excerpt showing what the speaker is discussing, followed by the video frames to analyze.
 
-You also receive the transcript context for these frames. Use it to understand what the speaker is discussing and referencing.
+For each frame, output a JSON array with one object per frame.
 
 For each frame determine:
 1. **category**: one of "code", "math", "diagram", "visual_reference", "text", "talking_head", "other"
@@ -265,7 +266,7 @@ def clean_segment(
         model=model_id,
         max_tokens=4096,
         system=CLEANUP_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"Clean this transcript:\n\n{segment_text}"}],
+        messages=[{"role": "user", "content": f"<transcript>\n{segment_text}\n</transcript>"}],
     )
     return message.content[0].text
 
@@ -287,7 +288,7 @@ def _media_type(path: Path) -> str:
 
 def analyze_segment_visuals(
     segment: VideoSegment,
-    vision_model: str = "claude-sonnet-4-20250514",
+    vision_model: str = "claude-sonnet-4-6",
     use_bedrock: Optional[bool] = None,
 ) -> list[VisualContent]:
     """Analyze frames for a segment, classifying and extracting text."""
@@ -298,7 +299,7 @@ def analyze_segment_visuals(
     model_id = get_model_id(vision_model, _is_bedrock(client))
 
     content: list[dict] = [
-        {"type": "text", "text": f"Transcript context for these frames:\n{segment.text}\n\n"},
+        {"type": "text", "text": f"<transcript>\n{segment.text}\n</transcript>\n\nAnalyze these frames from the lecture:"},
     ]
 
     for i, frame in enumerate(segment.frames):
@@ -307,7 +308,7 @@ def analyze_segment_visuals(
         content.append(
             {
                 "type": "text",
-                "text": f"Frame {i + 1} at {minutes:02d}:{seconds:02d}:",
+                "text": f'\n<frame index="{i + 1}" timestamp="{minutes:02d}:{seconds:02d}">',
             }
         )
         content.append(
@@ -320,13 +321,13 @@ def analyze_segment_visuals(
                 },
             }
         )
-
-    content.append({"type": "text", "text": VISUAL_ANALYSIS_PROMPT})
+        content.append({"type": "text", "text": "</frame>"})
 
     message = _call_anthropic(
         client,
         model=model_id,
         max_tokens=4096,
+        system=VISUAL_ANALYSIS_PROMPT,
         messages=[{"role": "user", "content": content}],
     )
 
@@ -419,9 +420,64 @@ def _deduplicate_images(segments: list[ProcessedSegment]) -> set[tuple[int, str]
     return suppressed
 
 
+def _format_code_for_assembly(
+    code: str, seg_index: int, recent_code: list[tuple[int, str]]
+) -> str:
+    """Return the code annotation for the assembly prompt.
+
+    If the code is ≥60% similar (line-level) to a recently seen code block,
+    this is an incremental update — only the added/changed lines are returned
+    with a header directing the assembly model to use '# ... (previous code
+    unchanged)' markers. This prevents the assembled document from repeating
+    the full class/function multiple times when a speaker builds it up step
+    by step.
+
+    Returns the full code prefixed with a space when it is new/distinct.
+    """
+    for prev_seg_idx, prev_code in reversed(recent_code[-3:]):
+        prev_lines = prev_code.splitlines()
+        curr_lines = code.splitlines()
+        ratio = difflib.SequenceMatcher(None, prev_lines, curr_lines).ratio()
+        if ratio < 0.6:
+            continue
+
+        # Compute the changed/added lines using opcode-level diffing
+        added: list[str] = []
+        removed: list[str] = []
+        for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, prev_lines, curr_lines
+        ).get_opcodes():
+            if tag in ("insert", "replace"):
+                added.extend(curr_lines[j1:j2])
+            if tag in ("delete", "replace"):
+                removed.extend(prev_lines[i1:i2])
+
+        if not added and not removed:
+            return f" [DUPLICATE CODE from segment {prev_seg_idx + 1} — do not repeat in output]"
+
+        header = (
+            f" [INCREMENTAL UPDATE extending segment {prev_seg_idx + 1} code"
+            f" — show only new/changed lines; use '# ... (previous code unchanged)'"
+            f" to mark unchanged parts]"
+        )
+        if added:
+            shown = added[:8]
+            header += "\nNew/changed lines:\n" + "\n".join(f"+ {line}" for line in shown)
+            if len(added) > 8:
+                header += f"\n... ({len(added) - 8} more additions)"
+        return header
+
+    # No matching prior code — show in full
+    return f" {code}"
+
+
 def _build_assembly_prompt(segments: list[ProcessedSegment]) -> str:
     """Build the assembly prompt from processed segments."""
     suppressed = _deduplicate_images(segments)
+
+    # Track recent code blocks to detect incremental class/function building.
+    # list of (seg_index, code_text); capped at 5 entries.
+    recent_code: list[tuple[int, str]] = []
 
     parts = []
     for seg in segments:
@@ -435,7 +491,13 @@ def _build_assembly_prompt(segments: list[ProcessedSegment]) -> str:
                     continue
                 note = f"[{v.category}]"
                 if v.extracted_text:
-                    note += f" {v.extracted_text}"
+                    if v.category == "code":
+                        note += _format_code_for_assembly(v.extracted_text, seg.index, recent_code)
+                        recent_code.append((seg.index, v.extracted_text))
+                        if len(recent_code) > 5:
+                            recent_code.pop(0)
+                    else:
+                        note += f" {v.extracted_text}"
                 if v.description:
                     note += f" Description: {v.description}"
                 if v.include_as_image and (seg.index, v.frame_path.name) not in suppressed:
@@ -579,45 +641,45 @@ AGENT_TOOLS = [
 
 AGENT_SYSTEM_PROMPT = """You are an expert document-assembly orchestrator converting a video lecture into a high-quality markdown document.
 
+<context>
 You have {num_segments} segments from a video titled "{title}".
 
 Here is a summary of each segment:
 
 {segment_summaries}
+</context>
 
-## Your tools
+<tools>
+1. clean_segments(indices) — Grammar cleanup (fast Haiku model). Run on ALL segments.
+2. analyze_visuals(indices) — Frame analysis (Sonnet vision). Skip segments with only talking-head frames — check the frame summary to decide.
+3. assemble_document(indices, structure_hints) — Structure + assemble markdown (Sonnet). Provide detailed structure_hints based on your content understanding.
+4. review_document() — Get document overview (total length, headings list, number of chunks). review_document(chunk=N) — Read chunk N for detailed review.
+5. revise_segments(indices, instructions) — Re-process specific segments with your feedback.
+</tools>
 
-1. **clean_segments(indices)** — Grammar cleanup (fast Haiku model). Run on ALL segments.
-2. **analyze_visuals(indices)** — Frame analysis (Sonnet vision). SKIP segments with only talking-head frames — check the frame summary to decide.
-3. **assemble_document(indices, structure_hints)** — Structure + assemble markdown (Sonnet). Provide detailed structure_hints based on your content understanding.
-4. **review_document()** — Get document overview (total length, headings list, number of chunks). **review_document(chunk=N)** — Read chunk N for detailed review.
-5. **revise_segments(indices, instructions)** — Re-process specific segments with your feedback.
-
-## Your workflow
-
-### Phase A — Processing
-1. Call clean_segments with ALL segment indices AND analyze_visuals for segments with interesting frames. Call both tools in the SAME response for parallel execution.
+<workflow>
+Phase A — Processing:
+1. Call clean_segments with ALL segment indices. Also call analyze_visuals for segments with interesting frames. Where possible, call both tools in the same response so they run in parallel.
 2. Examine the tool results. Formulate structure_hints: identify where major topic transitions occur, where sections begin/end, based on the segment previews.
 3. Call assemble_document with all indices and your structure_hints.
 
-### Phase B — Review
+Phase B — Review:
 4. Call review_document() (no arguments) to get the document overview: total length, number of chunks, and heading list.
-5. Call review_document(chunk=N) for EACH chunk (1 through num_chunks). You may call multiple chunks in the same response for parallel retrieval.
-6. Evaluate the ENTIRE document against these criteria:
+5. Call review_document(chunk=N) for each chunk (1 through num_chunks). Call multiple chunks in the same response for parallel retrieval.
+6. Evaluate the entire document against these criteria:
    - Are headings well-placed, descriptive, and properly capitalized in title case (using the speaker's own words)?
    - Is code/math properly extracted and formatted?
-   - When the speaker explains code step-by-step, is it broken into separate code blocks with explanation prose before each? (NOT one giant code block, NOT comments inside code.)
+   - When the speaker explains code step-by-step, is it broken into separate code blocks with explanation prose before each? (Not one giant code block, not comments inside code.)
    - Is the speaker's voice preserved (no paraphrasing)?
    - Are there awkward transitions between segments?
    - Is any content missing or duplicated?
    - Are speaker-referenced visuals ("look at this graph", "we see this histogram", "as shown here") included as images?
 7. If the document is good, respond with "APPROVED".
 8. If revisions are needed, call revise_segments with specific instructions, then call assemble_document again, then review again. Repeat until no new revisions are needed.
+</workflow>
 
-## Important
-- You can call multiple tools in one response — they execute in parallel.
-- When done, respond with ONLY the text "APPROVED" — the final document is already saved.
-- Your value is in PLANNING (which segments need visuals, structure hints) and REVIEWING (catching quality issues)."""
+When done, respond with ONLY the text "APPROVED" — the final document is already saved.
+Your value is in planning (which segments need visuals, structure hints) and reviewing (catching quality issues)."""
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +907,7 @@ def _execute_assemble_document(
         enhanced_system += f"\n\nSTRUCTURE HINTS from the orchestrator:\n{structure_hints}"
 
     client = get_client(use_bedrock=use_bedrock)
-    model_id = get_model_id("claude-sonnet-4-20250514", _is_bedrock(client))
+    model_id = get_model_id("claude-sonnet-4-6", _is_bedrock(client))
 
     batch_size = 15
     overlap = 1
@@ -997,7 +1059,7 @@ def _execute_revise_segments(
     cache_cleaned_dir.mkdir(parents=True, exist_ok=True)
 
     client = get_client(use_bedrock=use_bedrock)
-    model_id = get_model_id("claude-sonnet-4-20250514", _is_bedrock(client))
+    model_id = get_model_id("claude-sonnet-4-6", _is_bedrock(client))
 
     revised_count = 0
 
@@ -1014,8 +1076,8 @@ def _execute_revise_segments(
                 {
                     "role": "user",
                     "content": (
-                        f"Current text for segment {idx}:\n\n{current_text}\n\n"
-                        f"Revision instructions:\n{instructions}"
+                        f"<current_text>\n{current_text}\n</current_text>\n\n"
+                        f"<revision_instructions>\n{instructions}\n</revision_instructions>"
                     ),
                 }
             ],
@@ -1159,7 +1221,7 @@ def run_agent_loop(
         response = _call_anthropic(
             client,
             model=model_id,
-            max_tokens=4096,
+            max_tokens=16384,
             system=system,
             tools=AGENT_TOOLS,
             messages=messages,

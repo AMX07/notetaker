@@ -208,6 +208,97 @@ class TestSanitizeFilename:
         assert "\\" not in result
 
 
+class TestFormatCodeForAssembly:
+    """Tests for _format_code_for_assembly incremental-code deduplication."""
+
+    def _fn(self, code, seg_index, recent):
+        from src.llm import _format_code_for_assembly
+
+        return _format_code_for_assembly(code, seg_index, recent)
+
+    def test_new_code_returned_in_full(self):
+        result = self._fn("x = 1\ny = 2\n", 0, [])
+        assert result == " x = 1\ny = 2\n"
+
+    def test_duplicate_code_flagged(self):
+        code = "class Value:\n    def __init__(self, data):\n        self.data = data\n"
+        recent = [(0, code)]
+        result = self._fn(code, 1, recent)
+        assert "DUPLICATE" in result
+        assert "do not repeat" in result.lower()
+
+    def test_incremental_addition_shows_delta(self):
+        base = "class Value:\n    def __init__(self, data):\n        self.data = data\n"
+        extended = base + "    def __repr__(self):\n        return str(self.data)\n"
+        recent = [(0, base)]
+        result = self._fn(extended, 1, recent)
+        assert "INCREMENTAL" in result
+        assert "__repr__" in result  # new method shown in delta
+        assert "previous code unchanged" in result
+
+    def test_distinct_code_returned_in_full(self):
+        code_a = "import torch\nx = torch.tensor([1, 2, 3])\n"
+        code_b = "def train(model, data):\n    for x in data:\n        model(x)\n"
+        recent = [(0, code_a)]
+        result = self._fn(code_b, 1, recent)
+        # Not similar enough — returned in full
+        assert result == f" {code_b}"
+
+    def test_checks_last_three_recent_blocks(self):
+        base = "class Value:\n" + "    pass\n" * 10
+        extended = base + "    def new_method(self): pass\n"
+        # recent contains base at position 2 (index 0 in the [-3:] slice)
+        recent = [(0, "unrelated\ncode\n"), (1, "another\nblock\n"), (2, base)]
+        result = self._fn(extended, 3, recent)
+        assert "INCREMENTAL" in result
+
+    def test_build_assembly_prompt_deduplicates_incremental_code(self):
+        from pathlib import Path
+        from src.llm import _build_assembly_prompt, ProcessedSegment, VisualContent
+
+        base_code = "class Value:\n    def __init__(self, data):\n        self.data = data\n"
+        extended_code = base_code + "    def __repr__(self):\n        return str(self.data)\n"
+
+        seg0 = ProcessedSegment(
+            index=0,
+            cleaned_text="Let me define the Value class.",
+            visuals=[
+                VisualContent(
+                    frame_path=Path("/tmp/frame0.jpg"),
+                    timestamp=0.0,
+                    category="code",
+                    extracted_text=base_code,
+                    description=None,
+                    include_as_image=False,
+                )
+            ],
+        )
+        seg1 = ProcessedSegment(
+            index=1,
+            cleaned_text="Now I add the repr method.",
+            visuals=[
+                VisualContent(
+                    frame_path=Path("/tmp/frame1.jpg"),
+                    timestamp=30.0,
+                    category="code",
+                    extracted_text=extended_code,
+                    description=None,
+                    include_as_image=False,
+                )
+            ],
+        )
+
+        prompt = _build_assembly_prompt([seg0, seg1])
+
+        # The full base code appears once
+        assert base_code in prompt
+        # The extended code should NOT appear in full (only delta shown)
+        assert extended_code not in prompt
+        # The delta annotation should be present
+        assert "INCREMENTAL" in prompt
+        assert "__repr__" in prompt  # new method is in the delta
+
+
 class TestRateLimit:
     def test_allows_under_limit(self):
         from src.app import _check_rate_limit, _rate_limit_store
