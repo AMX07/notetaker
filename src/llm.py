@@ -115,7 +115,7 @@ def get_model_id(model: str, use_bedrock: bool) -> str:
     # Use cross-region inference profiles (us.anthropic.*) — required for on-demand
     bedrock_models = {
         "claude-opus-4-6": "us.anthropic.claude-opus-4-6-v1",
-        "claude-sonnet-4-6": "us.anthropic.claude-sonnet-4-6-v1",
+        "claude-sonnet-4-6": "arn:aws:bedrock:us-east-1:744741211997:inference-profile/us.anthropic.claude-sonnet-4-6",
         "claude-opus-4-20250514": "us.anthropic.claude-opus-4-20250514-v1:0",
         "claude-sonnet-4-20250514": "us.anthropic.claude-sonnet-4-20250514-v1:0",
         "claude-haiku-4-5-20251001": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
