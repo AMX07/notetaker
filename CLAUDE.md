@@ -80,3 +80,15 @@ Markdown (.md) with title-case headings, first-person voice preserved.
 - Python 3.10+
 - Type hints throughout
 - Ruff for linting
+
+## Design System
+Always read `DESIGN.md` before making any visual or UI decisions (fonts, colors, spacing, layout, motion, component styling). All tokens live there; do not redefine them ad hoc in `static/style.css` or `static/app.js`.
+
+Notetaker's design system is unified with the sibling Archive project (`~/sneak-in/DESIGN.md`) — same palette, typography, and anti-slop rules. `DESIGN.md` documents additions specific to notetaker's tool surfaces (upload, processing, result view, job list) that the Archive does not have.
+
+Do not deviate from `DESIGN.md` without explicit user approval. In `/qa` and `/design-review` mode, flag any code that doesn't match it.
+
+## gstack
+- Use the `/browse` skill from gstack for all web browsing.
+- Never use `mcp__claude-in-chrome__*` tools.
+- Available gstack skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/retro`, `/investigate`, `/document-release`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.

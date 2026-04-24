@@ -1,3 +1,9 @@
+// ============================================================
+// Notetaker frontend — editorial UI.
+// Element IDs are preserved from the old version where practical
+// so backend contract doesn't need to change.
+// ============================================================
+
 const dropzone = document.getElementById("dropzone");
 const fileInput = document.getElementById("file-input");
 const fileName = document.getElementById("file-name");
@@ -9,10 +15,12 @@ const languageInput = document.getElementById("language-input");
 const uploadSection = document.getElementById("upload-section");
 const progressSection = document.getElementById("progress-section");
 const progressBar = document.getElementById("progress-bar");
-const progressStage = document.getElementById("progress-stage");
+const progressStep = document.getElementById("progress-step");
+const progressTypewriter = document.getElementById("progress-typewriter");
 const progressSubstage = document.getElementById("progress-substage");
 const resultSection = document.getElementById("result-section");
 const downloadBtn = document.getElementById("download-btn");
+const viewBtn = document.getElementById("view-btn");
 const newBtn = document.getElementById("new-btn");
 const errorSection = document.getElementById("error-section");
 const errorMessage = document.getElementById("error-message");
@@ -23,13 +31,36 @@ const exampleModal = document.getElementById("example-modal");
 const closeModal = document.getElementById("close-modal");
 const exampleOutput = document.getElementById("example-output");
 
+const themeToggle = document.getElementById("theme-toggle");
+
 let selectedFile = null;
 let currentJobId = null;
 let pollInterval = null;
 
-// --- Dropzone ---
+// ========== Theme toggle ==========
+
+try {
+    const saved = localStorage.getItem("notetaker-theme");
+    if (saved === "dark" || saved === "light") {
+        document.documentElement.dataset.theme = saved;
+    }
+} catch {}
+
+themeToggle.addEventListener("click", () => {
+    const root = document.documentElement;
+    const current = root.dataset.theme
+        || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = current === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("notetaker-theme", next); } catch {}
+});
+
+// ========== Dropzone ==========
 
 dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+});
 
 dropzone.addEventListener("dragover", (e) => {
     e.preventDefault();
@@ -55,7 +86,12 @@ fileInput.addEventListener("change", () => {
 });
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
-const ALLOWED_TYPES = ["video/mp4", "video/x-matroska", "video/quicktime", "video/webm", "video/x-msvideo"];
+
+function formatBytes(bytes) {
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + " KB";
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+}
 
 function selectFile(file) {
     if (file.type && !file.type.startsWith("video/")) {
@@ -67,11 +103,12 @@ function selectFile(file) {
         return;
     }
     selectedFile = file;
-    fileName.textContent = file.name;
+    fileName.textContent = `${file.name} · ${formatBytes(file.size)}`;
+    fileName.hidden = false;
     submitBtn.disabled = false;
 }
 
-// --- Form Submit ---
+// ========== Form submit ==========
 
 uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -87,7 +124,9 @@ uploadForm.addEventListener("submit", async (e) => {
     resultSection.hidden = true;
     errorSection.hidden = true;
     progressBar.style.width = "0%";
-    progressStage.textContent = "Uploading...";
+    progressStep.textContent = "Uploading";
+    progressTypewriter.textContent = " ";
+    progressSubstage.textContent = "";
 
     try {
         const res = await fetch("/api/convert", {
@@ -108,7 +147,10 @@ uploadForm.addEventListener("submit", async (e) => {
     }
 });
 
-// --- Polling ---
+// ========== Polling + typewriter reveal ==========
+
+let typingJob = null;
+let lastShownSegment = "";
 
 function startPolling() {
     pollInterval = setInterval(pollStatus, 2000);
@@ -120,32 +162,65 @@ async function pollStatus() {
     try {
         const res = await fetch(`/api/status/${currentJobId}`);
         if (!res.ok) throw new Error("Failed to fetch status");
-
         const data = await res.json();
 
         if (data.total > 0) {
             const pct = Math.round((data.progress / data.total) * 100);
             progressBar.style.width = pct + "%";
         }
-        progressStage.textContent = data.stage || "Processing...";
+
+        progressStep.textContent = data.stage || "Processing";
         progressSubstage.textContent = data.substage || "";
+
+        // If backend surfaces a recent segment, typewriter-reveal it.
+        // Otherwise fall back to the stage detail.
+        const toType = data.latest_segment || data.substage || "";
+        if (toType && toType !== lastShownSegment) {
+            lastShownSegment = toType;
+            typewriterReveal(toType);
+        }
 
         if (data.status === "completed") {
             clearInterval(pollInterval);
+            stopTyping();
             progressSection.hidden = true;
             resultSection.hidden = false;
         } else if (data.status === "error") {
             clearInterval(pollInterval);
+            stopTyping();
             const stage = data.stage ? ` (at: ${data.stage})` : "";
             showError((data.error || "Unknown error") + stage);
         }
     } catch (err) {
         clearInterval(pollInterval);
+        stopTyping();
         showError(err.message);
     }
 }
 
-// --- Download ---
+function stopTyping() {
+    if (typingJob) {
+        clearTimeout(typingJob);
+        typingJob = null;
+    }
+}
+
+function typewriterReveal(text) {
+    stopTyping();
+    // Reveal up to the last ~180 chars of the segment at a realistic reading pace.
+    const display = text.length > 260 ? "..." + text.slice(-260) : text;
+    progressTypewriter.textContent = "";
+    let i = 0;
+    const step = () => {
+        if (i >= display.length) { typingJob = null; return; }
+        progressTypewriter.textContent = display.slice(0, i + 1);
+        i += 1;
+        typingJob = setTimeout(step, 18);
+    };
+    step();
+}
+
+// ========== Download / view / reset ==========
 
 downloadBtn.addEventListener("click", () => {
     if (currentJobId) {
@@ -153,7 +228,11 @@ downloadBtn.addEventListener("click", () => {
     }
 });
 
-// --- Reset ---
+viewBtn.addEventListener("click", () => {
+    if (currentJobId) {
+        window.open(`/api/view/${currentJobId}`, "_blank", "noopener");
+    }
+});
 
 function resetUI() {
     uploadSection.hidden = false;
@@ -162,20 +241,25 @@ function resetUI() {
     errorSection.hidden = true;
     selectedFile = null;
     fileName.textContent = "";
+    fileName.hidden = true;
     submitBtn.disabled = true;
     fileInput.value = "";
     currentJobId = null;
+    lastShownSegment = "";
+    progressTypewriter.textContent = " ";
+    progressBar.style.width = "0%";
+    stopTyping();
 }
 
 newBtn.addEventListener("click", resetUI);
 retryBtn.addEventListener("click", resetUI);
 
-// --- Error ---
+// ========== Error ==========
 
 const ERROR_MESSAGES = {
     413: "Video is too large (max 2 GB). Try a shorter or lower-resolution video.",
     429: "Too many requests. Please wait a few minutes and try again.",
-    503: "Server is busy. Please try again later.",
+    503: "The server is busy. Please try again later.",
     400: "Invalid file. Please upload a supported video format (MP4, MKV, MOV, WebM, AVI).",
 };
 
@@ -190,7 +274,7 @@ function showError(msg) {
     errorMessage.textContent = msg;
 }
 
-// --- Example Modal ---
+// ========== Example modal ==========
 
 exampleBtn.addEventListener("click", async () => {
     exampleModal.hidden = false;
@@ -201,7 +285,7 @@ exampleBtn.addEventListener("click", async () => {
             exampleOutput.innerHTML = marked.parse(text);
             exampleOutput.dataset.loaded = "1";
         } catch {
-            exampleOutput.textContent = "Failed to load example.";
+            exampleOutput.textContent = "Failed to load the example.";
         }
     }
 });
@@ -212,4 +296,8 @@ closeModal.addEventListener("click", () => {
 
 exampleModal.addEventListener("click", (e) => {
     if (e.target === exampleModal) exampleModal.hidden = true;
+});
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !exampleModal.hidden) exampleModal.hidden = true;
 });

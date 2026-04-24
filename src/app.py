@@ -20,12 +20,13 @@ from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Request, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 
 from .audio import extract_audio
 from .frames import extract_frames_hybrid, frames_from_json, frames_to_json
+from .htmlview import render_article_for_job
 from .llm import run_agent_loop
 from .segmenter import align_frames_to_segments, segment_by_time_windows
 from .transcribe import segments_from_json, segments_to_json, transcribe_audio
@@ -153,7 +154,7 @@ MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
 ALLOWED_EXTENSIONS = {".mp4", ".mkv", ".mov", ".webm", ".avi"}
 
 # Concurrency guard — limits parallel pipeline jobs
-MAX_CONCURRENT_JOBS = 2
+MAX_CONCURRENT_JOBS = 3
 _job_semaphore = threading.Semaphore(MAX_CONCURRENT_JOBS)
 
 
@@ -433,6 +434,7 @@ async def get_status(job_id: str):
         "progress": job["progress"],
         "total": job["total"],
         "error": job["error"],
+        "latest_segment": job.get("latest_segment", ""),
     }
 
 
@@ -488,6 +490,60 @@ async def download_result(job_id: str):
         media_type="text/markdown",
         filename=Path(job["output_path"]).name,
     )
+
+
+@app.get(
+    "/api/view/{job_id}",
+    summary="View result as editorial HTML",
+    tags=["Jobs"],
+    response_class=HTMLResponse,
+    dependencies=[Depends(verify_auth)],
+)
+async def view_result(job_id: str):
+    """Render the generated markdown as a styled editorial article (see DESIGN.md)."""
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = jobs[job_id]
+    if job["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Job not completed yet")
+    if not job.get("output_path"):
+        raise HTTPException(status_code=500, detail="No output file")
+
+    md_path = Path(job["output_path"])
+    job_dir = md_path.parent
+    if not md_path.exists():
+        raise HTTPException(status_code=500, detail="result.md missing from job dir")
+
+    html_doc = render_article_for_job(job_dir, job, job_id)
+    return HTMLResponse(content=html_doc)
+
+
+@app.get(
+    "/api/view/{job_id}/assets/{filename}",
+    summary="Serve an embedded image from the rendered article",
+    tags=["Jobs"],
+    include_in_schema=False,
+    dependencies=[Depends(verify_auth)],
+)
+async def view_asset(job_id: str, filename: str):
+    """Serve image assets referenced by the article view (e.g. extracted frames)."""
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    # Guard against path traversal.
+    if "/" in filename or "\\" in filename or filename.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid asset path")
+
+    job = jobs[job_id]
+    asset_path = Path(job["work_dir"]) / "assets" / filename
+    if not asset_path.exists() or not asset_path.is_file():
+        raise HTTPException(status_code=404, detail="Asset not found")
+    # Ensure the resolved path is still inside the job's assets dir.
+    try:
+        asset_path.resolve().relative_to((Path(job["work_dir"]) / "assets").resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid asset path")
+
+    return FileResponse(asset_path)
 
 
 # ---------------------------------------------------------------------------
@@ -592,12 +648,16 @@ def _run_pipeline(job_id: str):
             logger.info(f"[{job_id}] Starting LLM agent loop")
             job.update(stage="LLM agent processing", substage="", progress=45)
 
-            def on_agent_progress(stage: str, detail: str, pct: int):
+            def on_agent_progress(stage: str, detail: str, pct: int, *, latest_text: str | None = None):
                 logger.info(f"[{job_id}] Agent: {stage} — {detail}")
                 job["stage"] = f"LLM: {stage}"
                 job["substage"] = detail
                 # Map agent's 0-100% to pipeline's 45-95% range
                 job["progress"] = 45 + int(pct * 0.50)
+                if latest_text:
+                    # Trim to keep the status response small; the frontend
+                    # typewriter shows the tail of the segment anyway.
+                    job["latest_segment"] = latest_text.strip()[-400:]
 
             markdown_content = run_agent_loop(
                 video_segments=video_segments,

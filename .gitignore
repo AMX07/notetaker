@@ -7,7 +7,21 @@ extracted_frames/
 __pycache__/
 *.pyc
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 .claude/worktrees/
 extracted_transcript.txt
 *.ipynb
 video2doc/
+.gstack/
+
+# Binary media — pipeline inputs/outputs, never commit
+*.mp4
+*.mp3
+*.jpg
+*.jpeg
+*.wav
+*.m4a
+*.mkv
+*.mov
+*.webm
+*.avi

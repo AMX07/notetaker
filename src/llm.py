@@ -164,13 +164,18 @@ For each frame determine:
    - "visual_reference": use when the frame shows content the speaker explicitly references (e.g., terminal output, browser window, application UI, plot, histogram, training progress) but doesn't fit "code", "math", or "diagram".
 2. **extracted_text**: For "code" frames, extract the code exactly. For "math" frames, write LaTeX. For "text" frames, extract key text. For others, null.
 3. **description**: For "diagram" and "visual_reference" frames, a 1-2 sentence description of what the frame shows. For others, null.
-4. **include_as_image**: Set to true for:
-   - Diagrams and charts that cannot be represented as text
-   - ANY frame showing content the speaker explicitly references or describes in the transcript (e.g., "look at this graph", "we can see the output", "as shown here", "this histogram shows")
-   - Terminal output, application windows, browser screenshots, plots, or visualizations that the reader needs to see to follow the lecture
-   Set to false ONLY for:
-   - Pure talking-head frames (speaker's face with no meaningful visual content)
-   - Frames where the visual content has been fully captured as extracted_text (e.g., a simple code snippet already extracted verbatim)
+4. **include_as_image**: Set to true ONLY for truly graphical content that cannot be represented as text:
+   - Graphs, plots, charts, and histograms
+   - Diagrams, flowcharts, and architectural drawings
+   - Mathematical visualizations (not formulas — those go in extracted_text as LaTeX)
+   Set to false for EVERYTHING else, including:
+   - Talking-head frames (speaker's face)
+   - Code on screen (extract as text instead)
+   - Jupyter notebook cells and outputs (extract as text instead)
+   - Terminal/console output (extract as text instead)
+   - Browser windows, GitHub pages, documentation pages
+   - Slides with mostly text content
+   - Any frame whose useful content can be captured as extracted_text
 
 5. **deduplication**: If multiple frames in this segment show essentially the same content (e.g., same web page, same code file, same slide with minor scrolling), set include_as_image to true ONLY for the most complete/representative frame. Set the others to false.
 
@@ -198,7 +203,8 @@ Your job:
    - Insert $$ LaTeX blocks where math formulas are discussed.
    - Insert ![description](path) for diagrams AND visual references marked with IMAGE: — these are frames the speaker explicitly referenced that readers need to see to follow along.
    - Use the extracted text from visual analysis — do NOT invent content.
-   - When multiple IMAGE: markers appear with very similar descriptions (e.g., consecutive frames of the same page, repo, or screen), include ONLY the last one — it likely shows the most complete view.
+   - Only include images for truly graphical content (graphs, plots, diagrams). Do NOT include images of code, notebook cells, terminal output, or text-heavy screens — those should already be extracted as text.
+   - When multiple IMAGE: markers appear with very similar descriptions, include ONLY the last one.
 
 3. Code explanation formatting:
    - When the speaker explains code step-by-step or line-by-line, break it into logical sections.
@@ -673,7 +679,8 @@ Phase B — Review:
    - Is the speaker's voice preserved (no paraphrasing)?
    - Are there awkward transitions between segments?
    - Is any content missing or duplicated?
-   - Are speaker-referenced visuals ("look at this graph", "we see this histogram", "as shown here") included as images?
+   - Are images limited to truly graphical content only (graphs, plots, diagrams, flowcharts)? Images of code, notebooks, terminal output, browser pages, or text-heavy slides should NOT appear — their content belongs in text/code blocks.
+   - When the speaker references a visual ("look at this graph", "as shown here"), is the referenced graphic included?
 7. If the document is good, respond with "APPROVED".
 8. If revisions are needed, call revise_segments with specific instructions, then call assemble_document again, then review again. Repeat until no new revisions are needed.
 </workflow>
@@ -761,6 +768,7 @@ def _execute_clean_segments(
                     "Cleaning segments",
                     f"{completed}/{len(to_process)}",
                     int(completed / len(to_process) * 30),
+                    latest_text=cleaned,
                 )
 
     return {
@@ -1092,7 +1100,12 @@ def _execute_revise_segments(
             cache_file.write_text(revised_text)
             revised_count += 1
             if on_progress:
-                on_progress("Revising segments", f"{revised_count}/{len(indices)}", 90)
+                on_progress(
+                    "Revising segments",
+                    f"{revised_count}/{len(indices)}",
+                    90,
+                    latest_text=revised_text,
+                )
 
     return {
         "status": "success",

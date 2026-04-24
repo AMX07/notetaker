@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notes from Startup School Lectures</title>
+<meta name="description" content="Auto-generated notes from public lectures, lightly edited for readability.">
+<meta property="og:title" content="Notes from Startup School Lectures">
+<meta property="og:description" content="Auto-generated notes from public lectures, lightly edited for readability.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=fraunces:300,400,400i,500,500i,600,700|geist:400,500,600|geist-mono:400,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #FAF7F2;
+  --surface:  #F2EDE4;
+  --ink:      #1A1714;
+  --muted:    #6B6258;
+  --rule:     #D9D2C4;
+  --accent:   #FF4700;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body:    "Fraunces", Georgia, serif;
+  --font-ui:      "Geist", -apple-system, sans-serif;
+  --font-mono:    "Geist Mono", "Menlo", monospace;
+
+  --reading-width: 640px;
+  --breakout-width: 840px;
+  --page-max: 960px;
+
+  --size-xs:   0.75rem;
+  --size-sm:   0.875rem;
+  --size-base: 1rem;
+  --size-md:   1.0625rem;
+  --size-lg:   1.25rem;
+  --size-xl:   1.5rem;
+  --size-2xl:  2.25rem;
+  --size-3xl:  3.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:      #14110E;
+    --surface: #1F1B17;
+    --ink:     #EDE8DF;
+    --muted:   #908679;
+    --rule:    #2B2620;
+    --accent:  #FF5A1F;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:      #14110E;
+  --surface: #1F1B17;
+  --ink:     #EDE8DF;
+  --muted:   #908679;
+  --rule:    #2B2620;
+  --accent:  #FF5A1F;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 17px; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  line-height: 1.65;
+  font-feature-settings: "liga", "kern";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 300ms ease, color 300ms ease;
+}
+
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+}
+
+/* ——— Header ——— */
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 64px;
+}
+.page-head .brand {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--size-md);
+  color: var(--ink);
+  text-decoration: none;
+}
+.page-head .brand:hover { color: var(--accent); }
+.page-head .meta {
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ——— Article ——— */
+.article {
+  max-width: var(--reading-width);
+  margin: 0 auto;
+}
+
+/* Marginalia rail (desktop ≥1000px). `.article-wrap--with-rail` adds the
+   rail column next to the prose; without the modifier the wrap is a
+   single-column container so the image-breakout rule below can fire. */
+.article-wrap {
+  max-width: var(--reading-width);
+  margin: 0 auto;
+}
+.article-wrap--with-rail {
+  display: block;
+  max-width: var(--reading-width);
+}
+.article-wrap--with-rail .article { margin: 0; }
+@media (min-width: 1000px) {
+  .article-wrap--with-rail {
+    display: grid;
+    grid-template-columns: var(--reading-width) 280px;
+    gap: 60px;
+    max-width: calc(var(--reading-width) + 280px + 60px);
+    align-items: start;
+  }
+}
+
+.marginalia {
+  border-left: 1px solid var(--rule);
+  padding: 0 0 0 24px;
+  font-family: var(--font-ui);
+  position: sticky;
+  top: 32px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+.marginalia .m-label {
+  font-size: var(--size-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.marginalia ul { list-style: none; margin: 0; padding: 0; }
+.marginalia li {
+  padding: 10px 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.marginalia li:last-child { border-bottom: none; }
+.marginalia a {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  text-decoration: none;
+  color: inherit;
+  transition: color 200ms ease;
+}
+.marginalia a:hover { color: var(--accent); }
+.marginalia .m-time {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.marginalia .m-label-heading {
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
+  line-height: 1.4;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+@media (max-width: 1000px) {
+  .article-wrap {
+    grid-template-columns: 1fr;
+    max-width: var(--reading-width);
+    gap: 40px;
+  }
+  .marginalia {
+    border-left: none;
+    padding: 24px 0 0;
+    border-top: 1px solid var(--rule);
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    order: 2;
+  }
+  .article-wrap .article { order: 1; }
+}
+
+/* Scroll-margin so anchored h2 isn't hidden under sticky header (if any). */
+.article h2[id] { scroll-margin-top: 24px; }
+
+.article > h1:first-of-type,
+.article > h1:first-child {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--size-3xl);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+  font-variation-settings: "opsz" 144, "SOFT" 70;
+  text-wrap: balance;
+}
+
+.article p.byline {
+  font-family: var(--font-ui);
+  font-size: var(--size-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin-bottom: 48px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.article p.editorial-intro {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-lg);
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 24px;
+  padding-left: 20px;
+  border-left: 2px solid var(--accent);
+  text-wrap: pretty;
+}
+
+/* Drop cap on the first paragraph after the byline. Pure CSS — no JS. */
+.article p.byline + p::first-letter,
+.article p.byline + p::first-line { font-kerning: normal; }
+.article p.byline + p::first-letter {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+  font-size: 4.6rem;
+  line-height: 0.85;
+  float: left;
+  padding: 0.15em 0.12em 0 0;
+  color: var(--ink);
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+}
+
+.article h1,
+.article h2,
+.article h3,
+.article h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.article h2 {
+  font-size: var(--size-2xl);
+  line-height: 1.15;
+  margin-top: 64px;
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+
+.article h3 {
+  font-size: var(--size-lg);
+  line-height: 1.3;
+  margin-top: 40px;
+  margin-bottom: 8px;
+}
+
+.article h4 {
+  font-size: var(--size-md);
+  line-height: 1.4;
+  margin-top: 32px;
+  margin-bottom: 8px;
+}
+
+.article p {
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  line-height: 1.65;
+  margin-bottom: 24px;
+  color: var(--ink);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.article em { font-style: italic; }
+.article strong { font-weight: 600; }
+
+.article a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 200ms ease;
+}
+.article a:hover {
+  color: var(--accent);
+  text-decoration-thickness: 2px;
+}
+
+.article ul, .article ol {
+  margin: 0 0 24px 24px;
+  padding-left: 8px;
+}
+.article li {
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.article li::marker { color: var(--muted); }
+
+.article blockquote {
+  border-left: 2px solid var(--muted);
+  padding: 0 0 0 24px;
+  margin: 24px 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-style: italic;
+}
+.article blockquote p {
+  font-family: inherit;
+  font-style: inherit;
+  margin-bottom: 8px;
+}
+.article blockquote p:last-child { margin-bottom: 0; }
+
+.article code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  background: var(--surface);
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+}
+
+.article pre {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  padding: 16px 20px;
+  margin: 24px 0;
+  overflow-x: auto;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.article pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Ornament hr — centered asterism instead of a thin line, editorial convention. */
+.article hr {
+  border: none;
+  margin: 48px auto;
+  width: 120px;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 1em;
+  overflow: visible;
+  position: relative;
+}
+.article hr::before {
+  content: "\2042";
+  font-family: var(--font-display);
+  font-size: var(--size-lg);
+  color: var(--muted);
+  letter-spacing: 0.4em;
+  line-height: 1;
+}
+
+.article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-family: var(--font-ui);
+  font-size: var(--size-sm);
+  font-variant-numeric: tabular-nums;
+}
+.article table th,
+.article table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.article table th {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ——— Images ——— */
+.article figure,
+.article p > img:only-child,
+.article img {
+  display: block;
+  margin: 32px auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 6px;
+}
+
+.article figure {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+.article figure img {
+  padding: 6px;
+  margin: 0 auto;
+  display: block;
+}
+.article figure figcaption {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-sm);
+  color: var(--muted);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Image breakout on wide viewports — only when there is no marginalia rail.
+   When `.article-wrap--with-rail` is present the reading column is constrained
+   by the grid cell, so images must stay at 100% width. */
+@media (min-width: 1000px) {
+  .article-wrap:not(.article-wrap--with-rail) .article figure,
+  .article-wrap:not(.article-wrap--with-rail) .article p > img:only-child {
+    width: var(--breakout-width);
+    max-width: calc(100vw - 48px);
+    margin-left: calc((var(--reading-width) - var(--breakout-width)) / 2);
+  }
+}
+
+/* Inside the marginalia rail layout images stay within the 640px column. */
+.article-wrap--with-rail .article figure,
+.article-wrap--with-rail .article figure img,
+.article-wrap--with-rail .article img,
+.article-wrap--with-rail .article p > img:only-child {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ——— Footer ——— */
+.page-foot {
+  max-width: var(--reading-width);
+  margin: 96px auto 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.page-foot .brand {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-sm);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.page-foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.page-foot a:hover { color: var(--accent); }
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 6px 10px;
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+.theme-toggle:hover { border-color: var(--ink); color: var(--ink); }
+
+.page-head .theme-toggle { margin-left: 16px; }
+.page-head .head-right { display: flex; align-items: center; gap: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  html { font-size: 16px; }
+  .page { padding: 24px 20px 72px; }
+  .article > h1:first-of-type { font-size: 2.25rem; }
+  .article h2 { font-size: 1.75rem; }
+  .article figure,
+  .article p > img:only-child { width: 100%; margin-left: auto; margin-right: auto; }
+}
+
+.page-head .meta { display: none; }
+
+.site-intro {
+  margin: 0 auto 64px;
+  max-width: 640px;
+}
+.site-intro h1 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--size-3xl);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 144, "SOFT" 70;
+  margin: 0 0 16px;
+  text-wrap: balance;
+}
+.site-intro p {
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 24px;
+  text-wrap: pretty;
+}
+
+.lecture-list {
+  max-width: 640px;
+  margin: 0 auto;
+  list-style: none;
+  padding: 0;
+}
+.lecture-list li {
+  padding: 32px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.lecture-list li:last-child { border-bottom: 0; }
+.lecture-list .hero-item {
+  padding-bottom: 48px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--ink);
+}
+.lecture-list .lecture-link {
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--size-xl);
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
+.lecture-list .hero-item .lecture-link {
+  font-size: var(--size-2xl);
+  font-weight: 500;
+}
+.lecture-list .lecture-link:hover { color: var(--accent); }
+.lecture-list .meta-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lecture-list .meta-row a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.lecture-list .meta-row a:hover { color: var(--accent); }
+.lecture-list .hero-tag {
+  color: var(--accent);
+  font-weight: 500;
+}
+</style>
+<script>
+(function () {
+  try {
+    var saved = localStorage.getItem("notetaker-theme");
+    if (saved === "dark" || saved === "light") {
+      document.documentElement.dataset.theme = saved;
+    }
+  } catch (e) {}
+
+  window.__toggleTheme = function () {
+    var root = document.documentElement;
+    var current = root.dataset.theme;
+    if (!current) {
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      current = prefersDark ? "dark" : "light";
+    }
+    var next = current === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("notetaker-theme", next); } catch (e) {}
+  };
+})();
+</script>
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <a class="brand" href="/">Notes from Startup School Lectures</a>
+    <span class="head-right">
+      <button class="theme-toggle" onclick="window.__toggleTheme()">Light / Dark</button>
+    </span>
+  </header>
+
+  <section class="site-intro">
+    <h1>Notes from Startup School Lectures</h1>
+    <p>Auto-generated notes from public lectures, lightly edited for readability.</p>
+  </section>
+
+  <ul class="lecture-list">
+    <li class="hero-item"><a class="lecture-link" href="/design-for-startups-part-1-garry-tan/">Design for Startups Part 1 - Garry Tan</a><div class="meta-row"><span class="hero-tag">Hero lecture</span> <a href="https://www.youtube.com/watch?v=9urYWGx2uNk" target="_blank" rel="noopener">Original on YouTube</a></div></li><li class=""><a class="lecture-link" href="/design-for-startups-part-2-garry-tan/">Design for Startups Part 2 - Garry Tan</a><div class="meta-row"><a href="https://www.youtube.com/watch?v=O6uREh3G3sQ" target="_blank" rel="noopener">Original on YouTube</a></div></li><li class=""><a class="lecture-link" href="/what-founders-can-do-to-improve-their-design-game/">What Founders Can Do To Improve Their Design Game</a><div class="meta-row"><a href="https://www.youtube.com/watch?v=ksGNfd-wQY4" target="_blank" rel="noopener">Original on YouTube</a></div></li>
+  </ul>
+
+  <footer class="page-foot">
+    <a class="brand" href="/">Notes from Startup School Lectures</a>
+    <span>Source videos © Y Combinator. This is an independent educational archive — notes only, no video redistribution. &middot; Takedown: <a href="mailto:mittalansh9@gmail.com">mittalansh9@gmail.com</a></span>
+    <button class="theme-toggle" onclick="window.__toggleTheme()">Light / Dark</button>
+  </footer>
+</div>
+</body>
+</html>

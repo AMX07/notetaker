@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design for Startups Part 2 - Garry Tan &middot; Notes from Startup School Lectures</title>
+
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=fraunces:300,400,400i,500,500i,600,700|geist:400,500,600|geist-mono:400,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #FAF7F2;
+  --surface:  #F2EDE4;
+  --ink:      #1A1714;
+  --muted:    #6B6258;
+  --rule:     #D9D2C4;
+  --accent:   #FF4700;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body:    "Fraunces", Georgia, serif;
+  --font-ui:      "Geist", -apple-system, sans-serif;
+  --font-mono:    "Geist Mono", "Menlo", monospace;
+
+  --reading-width: 640px;
+  --breakout-width: 840px;
+  --page-max: 960px;
+
+  --size-xs:   0.75rem;
+  --size-sm:   0.875rem;
+  --size-base: 1rem;
+  --size-md:   1.0625rem;
+  --size-lg:   1.25rem;
+  --size-xl:   1.5rem;
+  --size-2xl:  2.25rem;
+  --size-3xl:  3.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:      #14110E;
+    --surface: #1F1B17;
+    --ink:     #EDE8DF;
+    --muted:   #908679;
+    --rule:    #2B2620;
+    --accent:  #FF5A1F;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:      #14110E;
+  --surface: #1F1B17;
+  --ink:     #EDE8DF;
+  --muted:   #908679;
+  --rule:    #2B2620;
+  --accent:  #FF5A1F;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 17px; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  line-height: 1.65;
+  font-feature-settings: "liga", "kern";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 300ms ease, color 300ms ease;
+}
+
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+}
+
+/* ——— Header ——— */
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 64px;
+}
+.page-head .brand {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--size-md);
+  color: var(--ink);
+  text-decoration: none;
+}
+.page-head .brand:hover { color: var(--accent); }
+.page-head .meta {
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ——— Article ——— */
+.article {
+  max-width: var(--reading-width);
+  margin: 0 auto;
+}
+
+/* Marginalia rail (desktop ≥1000px). `.article-wrap--with-rail` adds the
+   rail column next to the prose; without the modifier the wrap is a
+   single-column container so the image-breakout rule below can fire. */
+.article-wrap {
+  max-width: var(--reading-width);
+  margin: 0 auto;
+}
+.article-wrap--with-rail {
+  display: block;
+  max-width: var(--reading-width);
+}
+.article-wrap--with-rail .article { margin: 0; }
+@media (min-width: 1000px) {
+  .article-wrap--with-rail {
+    display: grid;
+    grid-template-columns: var(--reading-width) 280px;
+    gap: 60px;
+    max-width: calc(var(--reading-width) + 280px + 60px);
+    align-items: start;
+  }
+}
+
+.marginalia {
+  border-left: 1px solid var(--rule);
+  padding: 0 0 0 24px;
+  font-family: var(--font-ui);
+  position: sticky;
+  top: 32px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+.marginalia .m-label {
+  font-size: var(--size-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.marginalia ul { list-style: none; margin: 0; padding: 0; }
+.marginalia li {
+  padding: 10px 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.marginalia li:last-child { border-bottom: none; }
+.marginalia a {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  text-decoration: none;
+  color: inherit;
+  transition: color 200ms ease;
+}
+.marginalia a:hover { color: var(--accent); }
+.marginalia .m-time {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.marginalia .m-label-heading {
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
+  line-height: 1.4;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+@media (max-width: 1000px) {
+  .article-wrap {
+    grid-template-columns: 1fr;
+    max-width: var(--reading-width);
+    gap: 40px;
+  }
+  .marginalia {
+    border-left: none;
+    padding: 24px 0 0;
+    border-top: 1px solid var(--rule);
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    order: 2;
+  }
+  .article-wrap .article { order: 1; }
+}
+
+/* Scroll-margin so anchored h2 isn't hidden under sticky header (if any). */
+.article h2[id] { scroll-margin-top: 24px; }
+
+.article > h1:first-of-type,
+.article > h1:first-child {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--size-3xl);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+  font-variation-settings: "opsz" 144, "SOFT" 70;
+  text-wrap: balance;
+}
+
+.article p.byline {
+  font-family: var(--font-ui);
+  font-size: var(--size-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin-bottom: 48px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.article p.editorial-intro {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-lg);
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 24px;
+  padding-left: 20px;
+  border-left: 2px solid var(--accent);
+  text-wrap: pretty;
+}
+
+/* Drop cap on the first paragraph after the byline. Pure CSS — no JS. */
+.article p.byline + p::first-letter,
+.article p.byline + p::first-line { font-kerning: normal; }
+.article p.byline + p::first-letter {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+  font-size: 4.6rem;
+  line-height: 0.85;
+  float: left;
+  padding: 0.15em 0.12em 0 0;
+  color: var(--ink);
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+}
+
+.article h1,
+.article h2,
+.article h3,
+.article h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.article h2 {
+  font-size: var(--size-2xl);
+  line-height: 1.15;
+  margin-top: 64px;
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+
+.article h3 {
+  font-size: var(--size-lg);
+  line-height: 1.3;
+  margin-top: 40px;
+  margin-bottom: 8px;
+}
+
+.article h4 {
+  font-size: var(--size-md);
+  line-height: 1.4;
+  margin-top: 32px;
+  margin-bottom: 8px;
+}
+
+.article p {
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  line-height: 1.65;
+  margin-bottom: 24px;
+  color: var(--ink);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.article em { font-style: italic; }
+.article strong { font-weight: 600; }
+
+.article a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 200ms ease;
+}
+.article a:hover {
+  color: var(--accent);
+  text-decoration-thickness: 2px;
+}
+
+.article ul, .article ol {
+  margin: 0 0 24px 24px;
+  padding-left: 8px;
+}
+.article li {
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.article li::marker { color: var(--muted); }
+
+.article blockquote {
+  border-left: 2px solid var(--muted);
+  padding: 0 0 0 24px;
+  margin: 24px 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-style: italic;
+}
+.article blockquote p {
+  font-family: inherit;
+  font-style: inherit;
+  margin-bottom: 8px;
+}
+.article blockquote p:last-child { margin-bottom: 0; }
+
+.article code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  background: var(--surface);
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+}
+
+.article pre {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  padding: 16px 20px;
+  margin: 24px 0;
+  overflow-x: auto;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.article pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Ornament hr — centered asterism instead of a thin line, editorial convention. */
+.article hr {
+  border: none;
+  margin: 48px auto;
+  width: 120px;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 1em;
+  overflow: visible;
+  position: relative;
+}
+.article hr::before {
+  content: "\2042";
+  font-family: var(--font-display);
+  font-size: var(--size-lg);
+  color: var(--muted);
+  letter-spacing: 0.4em;
+  line-height: 1;
+}
+
+.article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-family: var(--font-ui);
+  font-size: var(--size-sm);
+  font-variant-numeric: tabular-nums;
+}
+.article table th,
+.article table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.article table th {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ——— Images ——— */
+.article figure,
+.article p > img:only-child,
+.article img {
+  display: block;
+  margin: 32px auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 6px;
+}
+
+.article figure {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+.article figure img {
+  padding: 6px;
+  margin: 0 auto;
+  display: block;
+}
+.article figure figcaption {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-sm);
+  color: var(--muted);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Image breakout on wide viewports — only when there is no marginalia rail.
+   When `.article-wrap--with-rail` is present the reading column is constrained
+   by the grid cell, so images must stay at 100% width. */
+@media (min-width: 1000px) {
+  .article-wrap:not(.article-wrap--with-rail) .article figure,
+  .article-wrap:not(.article-wrap--with-rail) .article p > img:only-child {
+    width: var(--breakout-width);
+    max-width: calc(100vw - 48px);
+    margin-left: calc((var(--reading-width) - var(--breakout-width)) / 2);
+  }
+}
+
+/* Inside the marginalia rail layout images stay within the 640px column. */
+.article-wrap--with-rail .article figure,
+.article-wrap--with-rail .article figure img,
+.article-wrap--with-rail .article img,
+.article-wrap--with-rail .article p > img:only-child {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ——— Footer ——— */
+.page-foot {
+  max-width: var(--reading-width);
+  margin: 96px auto 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.page-foot .brand {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-sm);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.page-foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.page-foot a:hover { color: var(--accent); }
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 6px 10px;
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+.theme-toggle:hover { border-color: var(--ink); color: var(--ink); }
+
+.page-head .theme-toggle { margin-left: 16px; }
+.page-head .head-right { display: flex; align-items: center; gap: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  html { font-size: 16px; }
+  .page { padding: 24px 20px 72px; }
+  .article > h1:first-of-type { font-size: 2.25rem; }
+  .article h2 { font-size: 1.75rem; }
+  .article figure,
+  .article p > img:only-child { width: 100%; margin-left: auto; margin-right: auto; }
+}
+</style>
+<script>
+(function () {
+  try {
+    var saved = localStorage.getItem("notetaker-theme");
+    if (saved === "dark" || saved === "light") {
+      document.documentElement.dataset.theme = saved;
+    }
+  } catch (e) {}
+
+  window.__toggleTheme = function () {
+    var root = document.documentElement;
+    var current = root.dataset.theme;
+    if (!current) {
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      current = prefersDark ? "dark" : "light";
+    }
+    var next = current === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("notetaker-theme", next); } catch (e) {}
+  };
+})();
+</script>
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <a class="brand" href="../">Notes from Startup School Lectures</a>
+    <span class="head-right">
+      <span class="meta">2026-04-24</span>
+      <button class="theme-toggle" onclick="window.__toggleTheme()">Light / Dark</button>
+    </span>
+  </header>
+
+  <div class="article-wrap article-wrap--with-rail">
+    <article class="article">
+      <h1>Design for Startups Part 2 - Garry Tan</h1><p class="byline">2026-04-24</p>
+<hr />
+<h1>Design for Startups Part 2 — Garry Tan</h1>
+<h2 id="how-to-find-and-choose-designers">How to Find and Choose Designers</h2>
+<p>Now's the super practical section of how to find and choose designers. We can get through this really quickly. I'm happy to answer questions afterwards about it, but the basic questions we always get asked is: when and how?</p>
+<p>The reality of it is there are so many ways to answer this, but this is just super boilerplate advice. It's pre-seed, seed, and probably pre-A. You still need a co-founder probably to do it, and then you could probably get by with a little bit of consulting. By Series A, you should probably—unless you truly have nothing that has a user-facing element, which is rare. I mean, even developer APIs today, I would argue that you need a developer API designer who sort of runs through this whole process, but just for a developer experience. It's incredibly valuable. That's make or break for even highly technical products. That's when you should really start thinking about your first hire.</p>
+<p>Then by Series B, what you really should think about is how do you hire a team? A lot of people reach Series B and they're still at the first hire stage. The difficult part is if you actually have ten, fifteen engineers and you're trying to hire that first designer, and you're not going to hire a team, that's actually like a little bit of a nightmare for a designer to work at. Being the only person on that whole team in charge of design—you versus twenty engineers—is a very scary thing for a designer.</p>
+<h3>Where to Find Designers</h3>
+<p>So this might be a little outdated, but this is what I've always used in the past. They're just websites online to sort of find designers. Dribbble is this incredible portfolio. You can get a lot out of LinkedIn. Look for companies in your space that have done design very, very well, and you can just very point-blank start reaching out to them. Behance, Krop, I mean all of these are websites that you should just go check out. AIGA even has a little database of member designers on there.</p>
+<p>When I'm thinking about hiring people directly for a full-time role or even for contract, there are a bunch of schools that have worked well for me: CMU-HCI, NYU, MIT, RISD, Parsons, Stanford. This is really not a comprehensive list, and frankly there are so many incredibly good designers who have never been to a design school.</p>
+<p>In terms of finding consultants, there's really two paths here. One is to go ahead and find an individual. So it turns out that there are a lot of people who you can kind of use this as a way to recruit them. Some of the best folks actually really like to work on a lot of different projects all the time. There's actually a very large pool of individuals who are basically individual consultants. They're hard to get, and you might have to email a lot of them, but you can reach out, you can hire them as consultants, and if there's a really good fit, that could be a way to get to know them and have them come on board.</p>
+<p>A really cool trick that I've heard for people who just need low cost logo design or visual design: there's actually an incredible number of people out there in the world who are not first world designers. They're totally available on 99designs, Fiverr, and I think there are probably a bunch of other places like that. The trick that I've heard is you can actually take your job, put it on one of these job boards, and then don't just hire one job. You could hire 20 jobs, and then look at the output of those 20 different people, and then personally befriend the person who does some of the best work.</p>
+<p>You'll find people all around the world—Philippines, Thailand, Eastern Europe, everywhere, really. Africa, Asia, Europe, even in the United States. People who are incredibly talented, who are just starting out in their careers or don't know how to get great jobs, and you could be the way that they learn about startups.</p>
+<p>Design firms—there are just so many. The difficulty with design firms is you kind of have to find one that is willing to work with startups. Many of them, the bread and butter for the best design firms truly is working with Fortune 500 companies for outrageous sums of money, so it can be very difficult to find ones that will work with startups. Viget Labs is the one out of DC that I use the most, but there are giant directories, and frankly, referrals are sort of your best bet.</p>
+<p>And then I want to call out a company that just graduated from YC a few weeks ago called Plato Design. Their URL is useplato.com. You should definitely reach out to them. I think that they do a very amazing job.</p>
+<h2 id="how-to-attract-designers-to-your-startup">How to Attract Designers to Your Startup</h2>
+<p>So how do you actually attract a designer to work at a startup? And really, the ideal at Series A, or even where you're at right now, is if you are a truly consumer-focused company, you kind of need a co-founder on there who can actually run this for you. But later on, especially if you're a three- or four-person team, you can usually find one, ideally unicorn, to come join and give them a much more senior role. That'll be fairly important at Series A.</p>
+<p>But once you do have a larger team of five to ten engineers, it gets really scary for a designer who's used to working with teams, working for a design firm, or working at Facebook or one of the large tech companies. They're used to sitting with other people who spend all of their time thinking about all of the things that we were just talking about with wireframes and users and personas. And so it can be incredibly scary for those designers to come and work for you at a much later stage if you don't plan to hire a team that is diversified, that gives them a really good day-to-day.</p>
+<p>And then at the end of the day, being able to be very crisp about what those roles are, that's the other part of hiring a team that's incredibly important. It's going to be very, very hard to find a unicorn, but often you can break it down by the exact things that I mentioned. There are incredibly good PMs who have great resumes, who have great backgrounds—that's one coherent role. Interaction designers, sometimes they can't make things that are pretty, but they are incredibly empathetic. They're able to think through things, they're great writers, they're incredible communicators, and that's what you would look for in that role. And finally, visual design, that's probably the part that often stands on its own. It doesn't have to, and so it's just a different skill set.</p>
+<h3>Content Marketing as a Strategy for Attracting Design Talent</h3>
+<p>And then, really quickly, I mean, it's actually very effective for startups who want to hire design teams to actually write about it. Content marketing works extremely well, social media works incredibly well. And if you're all engineers but you're already thinking about this and talking through a lot of the terms that I was talking about, well, that's a culture fit for designers because that's basically what they want. They want executives or workplaces or founders who understand and speak their language. And so that's why I encourage you guys to be very open with doing it yourself, to understand these things, because even if you don't do it down the road, you're actually far better at evaluating, managing, and working closely with people who do and who are very good at it.</p>
+<h2 id="how-to-interview-designers">How to Interview Designers</h2>
+<p>How do you actually interview these designers? Well, this is typically what I recommend. Do a quick phone screen. At the end of the day, no matter how beautiful a portfolio is, it's just so hard to work with people who have sort of their own vision that cannot communicate. And so the phone screen is really all about great communication skills. I think that's incredibly essential. And then when they actually come and meet you and the team, actually have them walk through the hard decisions, the trade-offs. We spend a lot of time on product design. You want to see exactly that kind of thought about personas, about prioritization. What are the difficult trade-offs? Because there always are in every type of product you could design.</p>
+<p>And finally, I recommend whichever founder has been doing the design or the key thing there is, if you've already spent your hundred to thousand hours thinking about a given problem, it's the best for you to actually spend time walking through a candidate over and over again. Just make sure that you think through these things the same way that they do.</p>
+<p>You can read this later, but it's pretty straightforward. Think about design. You don't want people who are complainers. That actually is pretty common. You want someone who's empathetic and listens to your needs. It's usually bad for someone to talk about themselves a lot. Going back to the empathy point, that's incredibly important.</p>
+<p>The funniest thing that I like to use is when someone asks them a design question, if they just go to the whiteboard and start drawing, they fail. Because, wait, why didn't you ask about the users? Who's it for? What's the problem? These are just guidelines. There's so many ways to interview.</p>
+<p>If you don't have a really good design leader on your team, I highly recommend that you go to a friend or someone who you do respect who can do this stuff to be sort of a final check before you hire someone. These are a bunch of books that I refer to throughout the talk. This is just a starting point. This is far from comprehensive, but if you bought every single one of these books and read it front to back, you would be a pretty good designer, maybe.</p>
+<p>There are a bunch of links that you should probably read afterwards, too. &quot;Taste for Makers&quot; is one of these PG essays that I think not a lot of people talk about, but it's incredibly timeless. I highly recommend that. These are links that are very specific about how do you write a PRD? What's your first wireframe? Then these other websites we just really like because there's so much there. This field is incredibly deep.</p>
+<p>So thank you so much for spending the time and making it all the way to the end of this talk. It's an hour and a half, ninety minutes. We made it through a hundred and four slides, so thank you for sitting with me. I will leave you with just one final thought, and it's truly that what we're talking about with a startup, design is only one leg of this three-legged stool, and your startup success truly lies at the intersection of all of these things. So thank you so much for spending time with me. I know that was a lot.</p>
+<p><img src="assets/interval_000067.jpg" alt="A Venn diagram showing three overlapping circles — Design (The Art of the Possible), Business (The Politics of Viable), and Technology (The Science of the Feasible) — with &quot;YOUR STARTUP SUCCESS&quot; labeled at their center intersection." /></p>
+<h2 id="q-amp-a">Q&amp;A</h2>
+<h3>On About Us Pages</h3>
+<p>So the question is, how important is an About Us page? I mean, this isn't necessarily a design thing. I actually really think it's important in that, going back to our moment where we were talking about how alone we are in this sort of barren product landscape. You just feel so alone. And the About Us page is the one place where you, as founders, can tell your story.</p>
+<p>Everyone is spending so much time trying to be incredibly—I mean, they're trying to imitate Microsoft. They're trying to be Google, right? You should embrace how powerful it is that you're trying to do this thing. And being a real human being, answering emails, and putting your name on the website—I mean, I would argue that that's why one of the big reasons why Coinbase was so successful. I mean, Brian Armstrong, very early on, he was probably the only person in the whole Bitcoin world who was willing to put their name, you know, address, like, just basic things to make it an incredibly real, real thing.</p>
+<p>So I think About Us is very important for your relationship with your customers, and that's not a design thing.</p>
+<h3>On Understanding Your Users Through Interviews</h3>
+<p>So I guess the question is: how do you actually properly ask questions to sort of get the story of your user? The hard part here is there's not really one way to do it. I think it really does come back to being a good interviewer and thinking through asking open-ended questions, which is actually a really good way to do it. Just tell me about your day. You can even seize on emotion, because the best problems to solve are actually incredibly emotional ones. It's like &quot;I get frustrated when blah&quot; or &quot;I get mad when blah, right?&quot; Those are very, very strong. I think Jeff might have taught me this, actually—you really want to look for other hair-on-fire problems, things that actually get people upset. Emotion can be an incredibly powerful and good thing. So open-ended questions and look for emotion.</p>
+<h3>On Prototyping and Finding Solutions Without Having One</h3>
+<p>Yeah, so the first question is about prototyping. If you have something important about that, say it. I have a confession to make: I have not done a lot of prototyping, simply because I'm always in such a rush to get the code done. The second I know what I want to build, I just build it, and then I ship it, and then I'll just do it live. So I haven't personally gotten a lot of use out of prototyping, but I know that it's an incredibly valuable tool. That's just a weird one for me, because I'm always preferring to just ship the thing and have it be out there.</p>
+<p>And then sorry, the second question. If you know the problem of the user, but you haven't found the solution—the hard part there is it's not totally clear to me that design can solve it. What you described maybe is either a business problem or a technology problem. Sometimes it is a design problem if there's, I don't know. The hard part is these things are so squishy, right? If it's a business problem, then you don't have distribution, people don't know they have the problem, you can't get in front of them. Or if it's a technology problem, then it's like, yeah, how do we actually build the thing? And if we're not capable of doing it, then design can't solve it, right? You don't know how to build to solve that problem.</p>
+<p>How about you just keep building things until you get it right? Do what Jeff said.</p>
+<h3>On Coinbase, Openness, and Industries Where Distance from Users Matters</h3>
+<p>The question is, are there places where you should maintain your distance? I can't think of any at the moment. There probably are.</p>
+<p>I mean, it was a really big advantage for them to be out in the open. I could imagine being, if it's A, incredibly competitive, and if you want to be secretive, there are cases where you don't want to be that open. And that does happen, especially for something that's easily copied or something that is incredibly enterprise focused, so it's not important for a lot of people to know about it. Those are the main scenarios where I think secrecy turns out to be very important. But most people tend to err on the side of more secrecy than less.</p>
+<p>The standard YC-ism around this that I very much believe is, whenever you're creating something new, you're not competing against all of the other people out there. You're only competing against obscurity. You're competing against the back button. And so to the extent that that's true, being as open as possible, getting as many people to know about you as possible, and being a human being and having that interplay, that's really good.</p>
+<p>The question is controversy. I mean, it depends on the type of controversy. You know, one of the funniest examples of me giving very bad advice and me being very relieved that the founder did not take that advice was a company called Soylent. So they came in through YC. They were working on something totally different in networking equipment. And I sat down with them in this room for office hours, and they said, great news. We have this incredible—we have all of these orders. People love this thing. Oh, by the way, we're going to stick with the name Soylent. And I said, please, please don't call it that. Do you know what that means? Haven't you seen the movie?</p>
+<p>And it turns out that the entire reason why they were able to get probably a billion dollars worth of earned, free advertising, the reason why they have an incredibly powerful business today is purely because they found exactly the right kind of controversy. Ninety percent of people who love food hear about it and say, this is terrible. I hate it. In fact, they hate it so much they're at dinner and they're telling everyone they know about it. And then ten percent of people hear about it and they're like, oh my God, I need that now. So there are cases where controversy can be incredibly powerful. I'll stop it there. Sorry. Thank you, guys.</p>
+<p>Thank you.</p>
+
+    </article>
+    <aside class="marginalia" aria-label="Table of contents"><div class="m-label">In this lecture</div><ul><li><a href="#how-to-find-and-choose-designers"><span class="m-time">0:00</span><span class="m-label-heading">How to Find and Choose Designers</span></a></li><li><a href="#how-to-attract-designers-to-your-startup"><span class="m-time">5:03</span><span class="m-label-heading">How to Attract Designers to Your Startup</span></a></li><li><a href="#how-to-interview-designers"><span class="m-time">7:51</span><span class="m-label-heading">How to Interview Designers</span></a></li></ul></aside>
+  </div>
+
+  <footer class="page-foot">
+    <a class="brand" href="../">Notes from Startup School Lectures</a>
+    <span>Source videos © Y Combinator. This is an independent educational archive — notes only, no video redistribution. &middot; Takedown: <a href="mailto:mittalansh9@gmail.com">mittalansh9@gmail.com</a></span>
+    <button class="theme-toggle" onclick="window.__toggleTheme()">Light / Dark</button>
+  </footer>
+</div>
+</body>
+</html>

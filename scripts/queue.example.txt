@@ -1,0 +1,16 @@
+# Queue for overnight bulk ingest. Format: URL<TAB>optional-title-override
+# Blank lines and lines starting with # are ignored.
+# The hero (Garry's "Design for Startups Part 1") runs separately via
+# ingest-youtube.sh for the dry-run (STEP 2), NOT through this queue.
+
+# Replace these placeholders with the 7 real YouTube URLs before sleep tonight.
+# Reminder from the plan: tonight's STEP 0 hard gate includes collecting all
+# URLs BEFORE sleeping. Do not leave this to 5:30am.
+
+# https://www.youtube.com/watch?v=XXX	How to Get and Evaluate Startup Ideas - Jared Friedman
+# https://www.youtube.com/watch?v=XXX	Tips for Technical Startup Founders - Diana Hu
+# https://www.youtube.com/watch?v=XXX	Why Founders Should Launch Sooner - Tyler Bosmeny
+# https://www.youtube.com/watch?v=XXX	How to Talk to Users - Gustaf Alstromer
+# https://www.youtube.com/watch?v=XXX	How to Build Product - Michael Seibel
+# https://www.youtube.com/watch?v=XXX	How to Evaluate Startup Ideas Part 2 - Dalton Caldwell
+# https://www.youtube.com/watch?v=XXX	Fundraising - Aaron Harris

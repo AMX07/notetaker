@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Founders Can Do To Improve Their Design Game &middot; Notes from Startup School Lectures</title>
+
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=fraunces:300,400,400i,500,500i,600,700|geist:400,500,600|geist-mono:400,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #FAF7F2;
+  --surface:  #F2EDE4;
+  --ink:      #1A1714;
+  --muted:    #6B6258;
+  --rule:     #D9D2C4;
+  --accent:   #FF4700;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body:    "Fraunces", Georgia, serif;
+  --font-ui:      "Geist", -apple-system, sans-serif;
+  --font-mono:    "Geist Mono", "Menlo", monospace;
+
+  --reading-width: 640px;
+  --breakout-width: 840px;
+  --page-max: 960px;
+
+  --size-xs:   0.75rem;
+  --size-sm:   0.875rem;
+  --size-base: 1rem;
+  --size-md:   1.0625rem;
+  --size-lg:   1.25rem;
+  --size-xl:   1.5rem;
+  --size-2xl:  2.25rem;
+  --size-3xl:  3.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:      #14110E;
+    --surface: #1F1B17;
+    --ink:     #EDE8DF;
+    --muted:   #908679;
+    --rule:    #2B2620;
+    --accent:  #FF5A1F;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:      #14110E;
+  --surface: #1F1B17;
+  --ink:     #EDE8DF;
+  --muted:   #908679;
+  --rule:    #2B2620;
+  --accent:  #FF5A1F;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 17px; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  line-height: 1.65;
+  font-feature-settings: "liga", "kern";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 300ms ease, color 300ms ease;
+}
+
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+}
+
+/* ——— Header ——— */
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 64px;
+}
+.page-head .brand {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--size-md);
+  color: var(--ink);
+  text-decoration: none;
+}
+.page-head .brand:hover { color: var(--accent); }
+.page-head .meta {
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ——— Article ——— */
+.article {
+  max-width: var(--reading-width);
+  margin: 0 auto;
+}
+
+/* Marginalia rail (desktop ≥1000px). `.article-wrap--with-rail` adds the
+   rail column next to the prose; without the modifier the wrap is a
+   single-column container so the image-breakout rule below can fire. */
+.article-wrap {
+  max-width: var(--reading-width);
+  margin: 0 auto;
+}
+.article-wrap--with-rail {
+  display: block;
+  max-width: var(--reading-width);
+}
+.article-wrap--with-rail .article { margin: 0; }
+@media (min-width: 1000px) {
+  .article-wrap--with-rail {
+    display: grid;
+    grid-template-columns: var(--reading-width) 280px;
+    gap: 60px;
+    max-width: calc(var(--reading-width) + 280px + 60px);
+    align-items: start;
+  }
+}
+
+.marginalia {
+  border-left: 1px solid var(--rule);
+  padding: 0 0 0 24px;
+  font-family: var(--font-ui);
+  position: sticky;
+  top: 32px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+.marginalia .m-label {
+  font-size: var(--size-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.marginalia ul { list-style: none; margin: 0; padding: 0; }
+.marginalia li {
+  padding: 10px 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.marginalia li:last-child { border-bottom: none; }
+.marginalia a {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  text-decoration: none;
+  color: inherit;
+  transition: color 200ms ease;
+}
+.marginalia a:hover { color: var(--accent); }
+.marginalia .m-time {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.marginalia .m-label-heading {
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
+  line-height: 1.4;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+@media (max-width: 1000px) {
+  .article-wrap {
+    grid-template-columns: 1fr;
+    max-width: var(--reading-width);
+    gap: 40px;
+  }
+  .marginalia {
+    border-left: none;
+    padding: 24px 0 0;
+    border-top: 1px solid var(--rule);
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    order: 2;
+  }
+  .article-wrap .article { order: 1; }
+}
+
+/* Scroll-margin so anchored h2 isn't hidden under sticky header (if any). */
+.article h2[id] { scroll-margin-top: 24px; }
+
+.article > h1:first-of-type,
+.article > h1:first-child {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--size-3xl);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+  font-variation-settings: "opsz" 144, "SOFT" 70;
+  text-wrap: balance;
+}
+
+.article p.byline {
+  font-family: var(--font-ui);
+  font-size: var(--size-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin-bottom: 48px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.article p.editorial-intro {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-lg);
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 24px;
+  padding-left: 20px;
+  border-left: 2px solid var(--accent);
+  text-wrap: pretty;
+}
+
+/* Drop cap on the first paragraph after the byline. Pure CSS — no JS. */
+.article p.byline + p::first-letter,
+.article p.byline + p::first-line { font-kerning: normal; }
+.article p.byline + p::first-letter {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+  font-size: 4.6rem;
+  line-height: 0.85;
+  float: left;
+  padding: 0.15em 0.12em 0 0;
+  color: var(--ink);
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+}
+
+.article h1,
+.article h2,
+.article h3,
+.article h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.article h2 {
+  font-size: var(--size-2xl);
+  line-height: 1.15;
+  margin-top: 64px;
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+
+.article h3 {
+  font-size: var(--size-lg);
+  line-height: 1.3;
+  margin-top: 40px;
+  margin-bottom: 8px;
+}
+
+.article h4 {
+  font-size: var(--size-md);
+  line-height: 1.4;
+  margin-top: 32px;
+  margin-bottom: 8px;
+}
+
+.article p {
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  line-height: 1.65;
+  margin-bottom: 24px;
+  color: var(--ink);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.article em { font-style: italic; }
+.article strong { font-weight: 600; }
+
+.article a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 200ms ease;
+}
+.article a:hover {
+  color: var(--accent);
+  text-decoration-thickness: 2px;
+}
+
+.article ul, .article ol {
+  margin: 0 0 24px 24px;
+  padding-left: 8px;
+}
+.article li {
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.article li::marker { color: var(--muted); }
+
+.article blockquote {
+  border-left: 2px solid var(--muted);
+  padding: 0 0 0 24px;
+  margin: 24px 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-style: italic;
+}
+.article blockquote p {
+  font-family: inherit;
+  font-style: inherit;
+  margin-bottom: 8px;
+}
+.article blockquote p:last-child { margin-bottom: 0; }
+
+.article code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  background: var(--surface);
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+}
+
+.article pre {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  padding: 16px 20px;
+  margin: 24px 0;
+  overflow-x: auto;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.article pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Ornament hr — centered asterism instead of a thin line, editorial convention. */
+.article hr {
+  border: none;
+  margin: 48px auto;
+  width: 120px;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 1em;
+  overflow: visible;
+  position: relative;
+}
+.article hr::before {
+  content: "\2042";
+  font-family: var(--font-display);
+  font-size: var(--size-lg);
+  color: var(--muted);
+  letter-spacing: 0.4em;
+  line-height: 1;
+}
+
+.article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-family: var(--font-ui);
+  font-size: var(--size-sm);
+  font-variant-numeric: tabular-nums;
+}
+.article table th,
+.article table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.article table th {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ——— Images ——— */
+.article figure,
+.article p > img:only-child,
+.article img {
+  display: block;
+  margin: 32px auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 6px;
+}
+
+.article figure {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+.article figure img {
+  padding: 6px;
+  margin: 0 auto;
+  display: block;
+}
+.article figure figcaption {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-sm);
+  color: var(--muted);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Image breakout on wide viewports — only when there is no marginalia rail.
+   When `.article-wrap--with-rail` is present the reading column is constrained
+   by the grid cell, so images must stay at 100% width. */
+@media (min-width: 1000px) {
+  .article-wrap:not(.article-wrap--with-rail) .article figure,
+  .article-wrap:not(.article-wrap--with-rail) .article p > img:only-child {
+    width: var(--breakout-width);
+    max-width: calc(100vw - 48px);
+    margin-left: calc((var(--reading-width) - var(--breakout-width)) / 2);
+  }
+}
+
+/* Inside the marginalia rail layout images stay within the 640px column. */
+.article-wrap--with-rail .article figure,
+.article-wrap--with-rail .article figure img,
+.article-wrap--with-rail .article img,
+.article-wrap--with-rail .article p > img:only-child {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ——— Footer ——— */
+.page-foot {
+  max-width: var(--reading-width);
+  margin: 96px auto 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.page-foot .brand {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--size-sm);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.page-foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.page-foot a:hover { color: var(--accent); }
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 6px 10px;
+  font-family: var(--font-ui);
+  font-size: var(--size-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+.theme-toggle:hover { border-color: var(--ink); color: var(--ink); }
+
+.page-head .theme-toggle { margin-left: 16px; }
+.page-head .head-right { display: flex; align-items: center; gap: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  html { font-size: 16px; }
+  .page { padding: 24px 20px 72px; }
+  .article > h1:first-of-type { font-size: 2.25rem; }
+  .article h2 { font-size: 1.75rem; }
+  .article figure,
+  .article p > img:only-child { width: 100%; margin-left: auto; margin-right: auto; }
+}
+</style>
+<script>
+(function () {
+  try {
+    var saved = localStorage.getItem("notetaker-theme");
+    if (saved === "dark" || saved === "light") {
+      document.documentElement.dataset.theme = saved;
+    }
+  } catch (e) {}
+
+  window.__toggleTheme = function () {
+    var root = document.documentElement;
+    var current = root.dataset.theme;
+    if (!current) {
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      current = prefersDark ? "dark" : "light";
+    }
+    var next = current === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("notetaker-theme", next); } catch (e) {}
+  };
+})();
+</script>
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <a class="brand" href="../">Notes from Startup School Lectures</a>
+    <span class="head-right">
+      <span class="meta">2026-04-24</span>
+      <button class="theme-toggle" onclick="window.__toggleTheme()">Light / Dark</button>
+    </span>
+  </header>
+
+  <div class="article-wrap article-wrap--with-rail">
+    <article class="article">
+      <h1>What Founders Can Do To Improve Their Design Game</h1><p class="byline">2026-04-24</p>
+<hr />
+<h1>Design-Minded Founders: A Conversation with Raphael Schade</h1>
+<p>Raphael Schade is a unique figure in the startup world. He's both a designer and the successful founder of Cron, a next-gen calendar for professionals, which was acquired by Notion and has gone on to become Notion Calendar, which is used by millions of people all around the world. Design is not just how it looks, but design is famously how it works. You see another dimension to the world when you start understanding design.</p>
+<p>So today we'll be chatting with Raphael to learn more about his design process and find out how founders can level up their design game. One of the things that I care a lot about is encouraging more designers to become founders and encouraging more founders to care about design in the earliest days of starting their company. So who better to have on than Raphael? Thank you for joining us.</p>
+<p>Awesome, excited to be here.</p>
+<h2 id="the-gap-between-designers-and-founders">The Gap Between Designers and Founders</h2>
+<p>You've made the jump from designer to founder. Why do you think that there aren't more designers out there making that same leap?</p>
+<p>Well, first of all, I kind of think there should just be more talented people building companies in general, not just designers. But designers actually have something really valuable to bring to the table when it comes to starting companies and building a product that people really want.</p>
+<p>I think you need three things to build a successful product and company. You need to have something desirable that people want. You need it to be viable, so you can build a business out of it. And you need it to be feasible—you need to be uniquely positioned to actually build it, you and your team. If you think about these three things—desirability, feasibility, and viability—as three overlapping circles, and you map them to more traditional disciplines, it's actually design, business, and technology. Design is really about making something people want. Design is essentially figuring that out. It's that mentality that I think a lot of designers have.</p>
+<p>What do you think is holding designers back from starting more companies if they're so well-suited, because it's how they spend a lot of their days and hone their craft?</p>
+<p>Yeah, it maybe goes back almost historically, to the context. Maybe back in the day, design was much closer to an artistic pursuit, where art is more about asking questions. Whereas design these days is more about problem-solving and answering questions, delivering solutions, basically. That probably happened sometime during industrialization, is my guess, where design could have moved closer to being part of the problem-solving, engineering apparatus. But back then in industrialization, designers didn't necessarily control the means of production. That is really changing now, where designers can essentially, through software and code, be really close to building the object, versus back in the day, maybe it's furniture or other objects. So I think that's what makes this moment in time so interesting for designers to build companies and build products.</p>
+<h3>Raphael's Path: From MIT Media Lab to Cron</h3>
+<p>Tell us a little bit about your journey, going from designer to founder of your company, to ultimately selling it to Notion.</p>
+<p>I actually have a technical background. I have a CS degree from back in the day that really allowed me to build things. I never studied CS because I wanted to go deep on that aspect, but really I wanted it to be a tool for me to build my own designs. So very much a maker at heart, I always had dreamed up things, designed things, and then wanted to be able to build in the medium.</p>
+<p>So I spent my graduate studies at the MIT Media Lab, where I built a lot of physical things. Again, kind of designing things and then building it in the medium that the ultimate object is in—that's really important to me. And of course, these days, where so much is software and so many of the products that I've built throughout my career are basically software, being capable to prototype, feel, but also sometimes even build the real thing, is what got me into this technical education.</p>
+<p>That's such a great point, actually, because that's kind of my journey too. I started learning design and learning how to code because I wanted to create the thing that I envisioned in my head. And to have the ability to execute and build it yourself is like—</p>
+<p>Yeah, exactly. It's the ultimate form of that. And so, do you think designers should learn to code?</p>
+<p>You should be comfortable in the medium that you're building in. And if software is what you're building, it's made out of code, but also pixels. Being relatively close to how the actual thing gets built gives you such a huge advantage. Especially now, in the AI age, where the thing that we design is less about the nouns—the buttons, the text fields, the sidebars—but really think more about the verbs. You know, autocomplete, autosuggest, summarize, send an agent to do something. Those are things that are kind of hard to express just by drawing a rectangle within a rectangle within a rectangle. But you really need to start to think about time as an aspect in your designs. And static prototypes oftentimes break down and don't quite give you the feedback that you get with real data. So I think whatever gives you the ability to play with the real thing is what gives designers the edge.</p>
+<p>Yeah, that's actually a great point. I've never thought about it like that. It'd be like if you were a sculptor and you just created the plans for the sculpture and then handed it off to somebody else to do the thing. That would sound crazy, right?</p>
+<p>Yeah, so why would we think that software design and software engineering are these entirely separate disciplines, right?</p>
+<h2 id="developing-design-taste-and-sensibility">Developing Design Taste and Sensibility</h2>
+<p>Yes. What about for maybe technical people, engineers, that don't have a good eye for design, you know, don't know how to create something that is user-friendly and think through all those considerations. What would you recommend to them? You know, top three things, what to do for people to become more design-minded?</p>
+<h3>Learn by Doing</h3>
+<p>First of all, I would say, just kind of do. Learning by doing, right? When you start to look at designs, you oftentimes can tell this is a good design or this is not as good of a design. This design works, this design doesn't work as much, but you don't really know why. When you start doing, you will probably produce bad designs at the beginning, but at least you kind of understand the material and you start to understand why a design works and doesn't work.</p>
+<p>What are the constraints that a designer who created a design that maybe doesn't work as well had, right? You really start to almost see the world through a different lens. You see another dimension to the world when you start understanding design.</p>
+<h3>Surround Yourself With Beauty</h3>
+<p>The second thing that I would say is to surround yourself with beauty. Surround yourself with really nicely designed objects—can be physical, but also can be the ergonomics of software, right? If you don't tolerate and let in that noise of bad designed objects, not designed objects, and all that cheap stuff. By the way, good design can also be cheap. That's an aspect of good design production. But surround yourself with well-designed objects to absorb and develop a taste.</p>
+<h3>Read Design Books</h3>
+<p>And the third thing I would say is read some design books. There's so much deep knowledge in some of these classics. I would say the top three would be <em>Grid Systems</em>, which is what taught me all about text and layout. Actually, a fun fact about <em>Grid Systems</em> is that the Cron Orange, FF4700, that fiery orange, was inspired by the cover of that iconic orange book.</p>
+<p>A second great book is <em>The Elements of Typographic Style</em>. It kind of taught me everything about type. Not just choosing a font, but how to use type as a graphic and as an interface element. And once you know about kerning and ligatures and microtypography, line spacing, et cetera, you see the world in a completely different way. It's kind of like a little bit of a blessing and a curse, but extremely powerful.</p>
+<p>A third great book is <em>The Design of Everyday Things</em>. It's a classic. It's the book with the cover that has a teapot where the spout comes on at the wrong end, kind of showing you about usability. The main takeaway from that one is to convey the importance of conveying the mental model of the apparatus or software you built to the user through UI, through design. But this is a tried and true classic in design. And I have a whole thread on Twitter about some of the top design books that goes into more graphic design and interaction design, et cetera, that I'm sure we can link down in the description below.</p>
+<p>And you said an interesting word there: taste. How do people do that? Is that something that can be learned? And if so, how should somebody go about getting better design taste?</p>
+<p>You can't maybe learn taste, but you can certainly acquire it. And again, to the earlier point, by surrounding yourself and not tolerating bad design—it's not about being snobby. It's more about separating, even thinking about the design dimension and separating something from being well-designed and not well-designed, something that works and something that doesn't.</p>
+<p>And so going through life with this lens and every interaction, every doorknob that you touch, kind of thinking of it: is this a pleasant experience? Is this a reliable design? Is this a lasting design? Is it a design that gets better with age? And I don't just mean physical patina, but also in software, something that gets better over time by the interface getting adaptive, for example, making it more obvious how I use it. Muscle memory, keyboard shortcuts, kind of peeling the onion of interfaces. I think that is where, if you study that, that is where you can become a great designer or if you're an engineer, kind of a design-minded engineer.</p>
+<p>Like 20, 25 years ago, when you were coming up, how did you develop that taste? Like, did you have it early on or was it something that you acquired over many years of surrounding yourself with great design?</p>
+<p>I think it was probably more the latter. Especially early on for me, it was not software. It was kind of more physical objects. But the importance of surrounding yourself with good things, that was certainly more a family thing. Don't buy a lot of things, buy a few things that really last and have high quality. And then evaluating kind of the object—like, why is this so pleasant to hold? Why does this work so well? How can you repair things? So repairability is also kind of like a hallmark of good design. That's where I developed kind of the sensibility and interest in, hey, I want to shape this myself.</p>
+<p>And once I realized that everything is designed, whether it's proactively designed or not—like everything is designed, even an accidental design. Every pen, every table, everything is designed. And even things that we don't think of as designed, like a designer sofa, everything has someone that made it. Now you can kind of consciously make it better. And especially once you understand this simple fact that everything around us is designed, there's a famous Steve Jobs quote—like there's people around me not that much smarter than me. So you mean like I can actually influence all of this? And that's when I was like, aha, naturally I need to become a designer.</p>
+<p>Yeah, that's actually a really interesting point, which is everything is designed. The question is whether it was intentional or not, whether thought went into it or not.</p>
+<h2 id="the-design-first-approach-in-startups">The Design-First Approach in Startups</h2>
+<p>Totally. And so, if you're a founder, maybe that doesn't have experience with focusing or really caring about design, because you just want to crank out the code and build the thing, what would you tell them as ways to try to acquire more of that? And things that they should focus on for why they should care about this and why it matters to have really great design and be thoughtful and intentional about it?</p>
+<p>There was a recent tweet by Gary, president here at Y Combinator, and he says kind of like, good design, especially in the early stage startups, is a lost art. And I was like, interesting. Why is that? Especially now that it feels like with AI, basically everything is getting re-imagined. Design first, right? And so I was like, now is the moment where design can have a huge outsized impact, I feel. I think companies that recognize the value of design, especially right now when everything is shifting, have a huge edge.</p>
+<p>Yeah, it seems like the focus has become so much on speed, rightly so, shipping product, building it. We don't have time to be thoughtful about the design. So whatever comes out is what comes out. And those that do put in the time to be thoughtful and focus on the things that really matter, it's felt, I think, by the end users and appreciated in a different way.</p>
+<p>Totally, and I think design is not just how it looks, but design is famously how it works. I would even take this a step further. I would say design is not how it looks or how it works, but design is how it's built. You can feel it end to end. What's their design involved when it was built and what technology was used? Were there loading states, latencies? All of that is, in my mind, design. So the material that is used to create an object, a piece of software, the framework, whatever, like to me, that is part of the design.</p>
+<p>Yeah, absolutely. What are some tactical things that founders can do to level up their design game?</p>
+<p>Thinking about hiring for design early on is a really important one. So first, designers and design founders, that's one aspect. But then also for more technical people or even designer founders to really amplify their design, hiring talented designers relatively early on, I think that's a huge leverage. Tapping into networks such as Y Combinator or the Designer Fund here in San Francisco that have built out these networks, bringing designers more into tech companies early on. I think this is one way for founders to really level up the design of their companies.</p>
+<h3>From Sketching to High-Fidelity Prototypes</h3>
+<p>Cool, I'd love to hear more about your design process.</p>
+<p>Yeah, so typically for me it starts with sketching. I mean, you oftentimes first talk to users, right? You may have some intuition, but you really want to, in the end, solve user problems. So that's where it really starts, right? Intuition or user problems. But then when you want to quickly visualize something, to very quickly move from insight to capture that insight, I still found it most efficiently to just quickly jot it down on a piece of paper. And so that's what I still use my sketchbooks for. It's still just sketching a ton of interface ideas and whatever is easiest for you to quickly capture the idea. I think that's most important for me at sketching.</p>
+<p><img src="assets/interval_000091.jpg" alt="Hand-drawn UI wireframes comparing Sidebar vs. Popover layouts, with handwritten design notes titled 'Event creation and editing New Cron'" /></p>
+<p><img src="assets/interval_000092.jpg" alt="Hand-drawn UI sketches exploring 'adaptive precision' cursor behaviors and 'Grid selection x Context panel' interaction states with numbered scenario sketches" /></p>
+<p>And then moving pretty quickly from capturing that sort of visual insight and giving it some form to starting to play with it as high fidelity as possible. For some people, this may be taking a photo of the sketch and putting it in Figma and starting to wireframe it out, or directly doing more pixel perfect designs. What I sometimes really like to do is also just take the sketch, have it on the table, and then jump into a code editor and already try to start assembling the UI to start to feel it. Because I kind of know what good looks like. I don't necessarily need to draw it out, but I want to feel whether it also feels good. And the way we're building it, whether that works back to the design—it's not just how it looks, but how it works and also how it's built.</p>
+<p>Yeah. Talk more about that. Because I've heard other designers talk about that, like trying to get a sense for how it feels. And when you're trying to get a sense for the feel of something that you have designed, what are the steps that you're actually going through there to tell if it feels right?</p>
+<p>You kind of start to develop an intuition, especially with interaction design—like what works, what doesn't, what's consistent with platform norms. And this goes down to things like when should a field blur or focus, or when should a dropdown appear when you focus the field? How does it interact with text, with the keyboard? So respecting user expectations and standards that they're used to from years of computing, not reinventing the wheel, but then also pushing the boundaries, right? That's kind of where I think this dance—this elegant dance as a designer, as a builder—comes in to really start to build something that just feels right, feels fun, feels novel, but still kind of familiar. And so that's when you really need to build in the actual medium.</p>
+<p>Yeah, that dance is always tricky, right? Like designing a thing that people are familiar with while also wanting to push the boundaries and innovate on something new and better.</p>
+<h2 id="the-future-of-design-and-advice-for-founders">The Future of Design and Advice for Founders</h2>
+<p>And that requires education and changing expectations around how software should work. And obviously AI is blowing that up in so many ways. What is that dance? Is that just your own kind of taste and determining where to draw the line on consistency with existing norms versus trying new things? Or how do you think about that?</p>
+<p>Initially, it's maybe kind of like a taste. Do I like something, or rather, does it work for me? I always kind of say like is not a design word. It either works or doesn't work. And so that initial assessment might kind of lie with the designer. But then pretty quickly, because you built the thing or at least a prototype of it, you can actually distribute it over the web or just kind of show someone on a laptop your prototype and let them interact with it. And ultimately, I think users are the ultimate judge whether a design works or doesn't work.</p>
+<p>You know, one of the reasons why I think sketching on paper is so powerful is because the medium of paper affords you to do anything. You don't have any constraints at that point yet. Once you start to get into a design tool or code, you start to kind of get dragged down by the constraints of the medium. Paper is this super flexible medium. So it gives you just enough boundary, right? The page focuses you within this sort of limit, you know, within the page to kind of get an idea out of your mind. It's not this infinite thing. So the constraint there is really good. But then within the page, it's completely unconstrained. Like I can draw anything. You're not limited to lines and rectangles and text.</p>
+<p>Exactly. And so I think a piece of paper is super approachable for non-designers. Everyone can doodle, right? Super approachable. It's very flexible. And you can really imagine anything on the page. And then you can take it, snap a picture or whatever, send it to an engineer or a designer to kind of increase the fidelity of it.</p>
+<p>Or upload it to AI now. Exactly. And so, you know, for a while, it maybe kind of seemed that sketching is like, clearly we should just start this digital first, right? But what if now the value of a sketch actually becomes very important again, when you can skip that entire step. You kind of jot down an idea, you quickly sketch it out, you take a picture of it, you upload it into a design tool that then turns into the real deal. You can skip everything in between, right?</p>
+<p>And so it really then comes down to what user problem are you solving? And is it sort of an innovative approach to solving it?</p>
+<p>Well, Raphael, thank you for joining us. It was super interesting to hear about your journey and your process here, starting with sketching. I think it's really interesting to see how your mind works when you're starting on a project all the way through to the completed thing. You can feel the quality in the products that you have designed. And it's no wonder that there are millions of people using them today.</p>
+<p>My main message for the audience would just be to encourage more designers to become founders. It's been an amazing journey for me, partly also through Y Combinator. And then for existing founders to kind of develop this design mind, because it's going to be one of the most important skill sets to rebuild the huge next generation companies. More examples of designers that can build the product and actually execute. So much power comes with that. And so I think you're a great example of that. So thank you for joining us today. Thank you so much. Thank you.</p>
+
+    </article>
+    <aside class="marginalia" aria-label="Table of contents"><div class="m-label">In this lecture</div><ul><li><a href="#the-gap-between-designers-and-founders"><span class="m-time">0:57</span><span class="m-label-heading">The Gap Between Designers and Founders</span></a></li><li><a href="#developing-design-taste-and-sensibility"><span class="m-time">5:56</span><span class="m-label-heading">Developing Design Taste and Sensibility</span></a></li><li><a href="#the-design-first-approach-in-startups"><span class="m-time">11:55</span><span class="m-label-heading">The Design-First Approach in Startups</span></a></li></ul></aside>
+  </div>
+
+  <footer class="page-foot">
+    <a class="brand" href="../">Notes from Startup School Lectures</a>
+    <span>Source videos © Y Combinator. This is an independent educational archive — notes only, no video redistribution. &middot; Takedown: <a href="mailto:mittalansh9@gmail.com">mittalansh9@gmail.com</a></span>
+    <button class="theme-toggle" onclick="window.__toggleTheme()">Light / Dark</button>
+  </footer>
+</div>
+</body>
+</html>

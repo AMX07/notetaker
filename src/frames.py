@@ -65,7 +65,7 @@ def extract_frames_interval(
         "-y",
         pattern,
     ]
-    subprocess.run(cmd, capture_output=True, check=True, timeout=300)
+    subprocess.run(cmd, capture_output=True, check=True, timeout=1800)
 
     frames = []
     for f in sorted(output_dir.glob("interval_*.jpg")):
@@ -118,7 +118,7 @@ def extract_frames_scene_change(
         "-y",
         pattern,
     ]
-    result = subprocess.run(cmd_with_info, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(cmd_with_info, capture_output=True, text=True, timeout=1800)
 
     # Parse timestamps from showinfo output in stderr
     frames = []

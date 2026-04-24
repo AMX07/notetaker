@@ -4,80 +4,105 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notetaker</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=fraunces:300,400,400i,500,500i,600,700|geist:400,500,600|geist-mono:400,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Notetaker</h1>
-            <p class="subtitle">Convert video lectures into markdown</p>
+    <div class="page">
+        <header class="page-head">
+            <a class="brand" href="/">Notetaker</a>
+            <span class="head-right">
+                <button class="link-btn" id="example-btn" type="button">See an example</button>
+                <button class="theme-toggle" id="theme-toggle" type="button">Light / Dark</button>
+            </span>
         </header>
 
-        <!-- Upload Form -->
-        <div id="upload-section" class="card">
-            <form id="upload-form">
-                <div id="dropzone" class="dropzone">
-                    <p class="dropzone-text">Drop MP4 file here or click to browse</p>
-                    <input type="file" id="file-input" accept="video/mp4,video/*" hidden>
-                    <p id="file-name" class="file-name"></p>
+        <main>
+            <!-- Upload Form -->
+            <section id="upload-section">
+                <h1 class="page-title">Drop a lecture here.</h1>
+                <p class="lede">Notetaker converts video into markdown you can actually read. It preserves the speaker's voice, minimal edits only.</p>
+
+                <form id="upload-form">
+                    <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload video">
+                        <p class="dropzone-text"><span class="accent">Drop an MP4 here</span>, or <span class="accent">click to browse</span>.</p>
+                        <input type="file" id="file-input" accept="video/mp4,video/*" hidden>
+                        <p id="file-name" class="file-name" hidden></p>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="label-sm" for="title-input">Title <span class="optional">(optional)</span></label>
+                        <input type="text" id="title-input" class="rule-input" placeholder="Auto-detected from filename">
+                    </div>
+
+                    <div class="form-row">
+                        <label class="label-sm" for="language-input">Language <span class="optional">(optional)</span></label>
+                        <input type="text" id="language-input" class="rule-input" placeholder="Auto-detect, e.g. en · es · fr">
+                    </div>
+
+                    <div class="action-row">
+                        <button type="submit" id="submit-btn" class="btn btn-primary" disabled>
+                            <span class="accent-mark" aria-hidden="true">¶</span> Convert to markdown
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Progress Section -->
+            <section id="progress-section" hidden>
+                <h1 class="page-title">The wait, made visible.</h1>
+                <p class="lede">Notetaker is reading your lecture. No spinners, no tricks. What you see below is the prose being cleaned in front of you.</p>
+
+                <p class="step-label"><span id="progress-step">Starting</span></p>
+                <div class="typewriter-wrap">
+                    <p id="progress-typewriter" class="typewriter">&nbsp;</p>
                 </div>
+                <p id="progress-substage" class="substage"></p>
+                <div class="progress-meter" aria-hidden="true"><div id="progress-bar" class="progress-meter-fill"></div></div>
+            </section>
 
-                <div class="form-row">
-                    <label for="title-input">Title (optional)</label>
-                    <input type="text" id="title-input" placeholder="Auto-detected from filename">
+            <!-- Result Section -->
+            <section id="result-section" hidden>
+                <h1 class="page-title">Your notes are ready.</h1>
+                <p class="lede">The markdown has been reviewed by the Opus agent. Read it here, or download the raw file.</p>
+
+                <div class="action-row">
+                    <button id="view-btn" class="btn btn-primary"><span class="accent-mark">¶</span> Read the article</button>
+                    <button id="download-btn" class="btn btn-ghost">Download markdown</button>
+                    <button id="new-btn" class="btn btn-ghost">Convert another</button>
                 </div>
+            </section>
 
-                <div class="form-row">
-                    <label for="language-input">Language (optional)</label>
-                    <input type="text" id="language-input" placeholder="Auto-detect (e.g. en, es, fr)">
+            <!-- Error Section -->
+            <section id="error-section" hidden>
+                <h1 class="page-title">Something went wrong.</h1>
+                <div class="alert alert-error">
+                    <p id="error-message"></p>
                 </div>
-
-                <button type="submit" id="submit-btn" disabled>Convert to Markdown</button>
-            </form>
-        </div>
-
-        <!-- Example Section -->
-        <div class="example-link">
-            <button id="example-btn" class="text-btn">See an example output</button>
-        </div>
+                <div class="action-row">
+                    <button id="retry-btn" class="btn btn-ghost">Try again</button>
+                </div>
+            </section>
+        </main>
 
         <!-- Example Modal -->
         <div id="example-modal" class="modal" hidden>
-            <div class="modal-content card">
-                <div class="modal-header">
-                    <h2>Example Output</h2>
-                    <button id="close-modal" class="close-btn">&times;</button>
+            <div class="modal-content">
+                <div class="modal-head">
+                    <h2 class="modal-title">Example output</h2>
+                    <button id="close-modal" class="close-btn" aria-label="Close">&times;</button>
                 </div>
-                <p class="modal-subtitle">This is what notetaker generates from a video lecture.</p>
+                <p class="modal-sub">A lecture rendered by notetaker, so you know what you're getting.</p>
                 <div id="example-output" class="example-output"></div>
             </div>
         </div>
 
-        <!-- Progress Section -->
-        <div id="progress-section" class="card" hidden>
-            <h2>Processing</h2>
-            <div class="progress-bar-container">
-                <div id="progress-bar" class="progress-bar"></div>
-            </div>
-            <p id="progress-stage" class="stage-text">Starting...</p>
-            <p id="progress-substage" class="substage-text"></p>
-        </div>
-
-        <!-- Result Section -->
-        <div id="result-section" class="card" hidden>
-            <h2>Done</h2>
-            <p>Your markdown file is ready.</p>
-            <button id="download-btn" class="download-btn">Download Markdown</button>
-            <button id="new-btn" class="secondary-btn">Convert Another</button>
-        </div>
-
-        <!-- Error Section -->
-        <div id="error-section" class="card error-card" hidden>
-            <h2>Error</h2>
-            <p id="error-message"></p>
-            <button id="retry-btn" class="secondary-btn">Try Again</button>
-        </div>
+        <footer class="page-foot">
+            <span class="brand">Notetaker</span>
+            <span class="meta">A reader for spoken words.</span>
+        </footer>
     </div>
 
     <script src="/static/app.js"></script>
